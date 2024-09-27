@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id         Int        @id @default(autoincrement())
+  uuid       String     @unique @default(uuid())
+  username   String     @unique
+  email      String     @unique
+  full_name  String
+  password   String
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  roles_id   Int
+  roles      Roles      @relation(fields: [roles_id], references: [id])
+  likes      Likes[]
+  comments   Comments[]
+  Blogs      Blogs[]
+}
+
+model Roles {
+  id    Int     @id @default(autoincrement())
+  uuid  String  @unique @default(uuid())
+  name  String
+  users Users[]
+}
+
+model Likes {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  content_id Int
+  content    Contents @relation(fields: [content_id], references: [id])
+  liked_by   Int
+  user       Users    @relation(fields: [liked_by], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Comments {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  content_id   Int
+  content      Contents @relation(fields: [content_id], references: [id])
+  subject      String
+  comment      String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  commented_by Int
+  user         Users    @relation(fields: [commented_by], references: [id])
+}
+
+enum ContentType {
+  Ebook
+  VideoPodcast
+  AudioPodcast
+  Novel
+  PklReport
+  Blog
+}
+
+model Contents {
+  id          Int         @id @default(autoincrement())
+  uuid        String      @unique @default(uuid())
+  type        ContentType // Ebook, Video Podcast, Audio Podcast, etc.
+  title       String
+  thumbnail   String
+  description String
+  subjects    String[]
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  category_id Int
+  category    Categories  @relation(fields: [category_id], references: [id])
+  tags        Tags[]
+  comments    Comments[]
+  likes       Likes[]
+
+  VideoPodcasts VideoPodcasts[]
+
+  AudioPodcasts AudioPodcasts[]
+
+  Blogs Blogs[]
+
+  Ebooks Ebooks[]
+
+  Novel Novels[]
+
+  PklReports PklReports[]
+}
+
+model Categories {
+  id          Int        @id @default(autoincrement())
+  uuid        String     @unique @default(uuid())
+  avatar      String
+  name        String     @unique
+  description String
+  content     Contents[]
+}
+
+model Tags {
+  id          Int        @id @default(autoincrement())
+  uuid        String     @default(uuid())
+  avatar      String
+  name        String     @unique
+  description String
+  content     Contents[]
+}
+
+model VideoPodcasts {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  duration   Int
+  file_url   String
+  creator_id Int
+  creator    Students @relation(fields: [creator_id], references: [id])
+  content_id Int      @unique
+  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model AudioPodcasts {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  duration   Int
+  file_url   String
+  creator_id Int
+  creator    Students @relation(fields: [creator_id], references: [id])
+  content_id Int      @unique
+  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model Blogs {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  blog_content String
+  author_id    Int
+  published    Boolean
+  published_at DateTime
+  author       Users    @relation(fields: [author_id], references: [id])
+  content_id   Int      @unique
+  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model Ebooks {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  author       String
+  pages        Int
+  publication  String
+  file_url     String
+  isbn         String
+  release_date DateTime
+  content_id   Int      @unique
+  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model Novels {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  author_id  Int
+  author     Students @relation(fields: [author_id], references: [id])
+  pages      Int
+  file_url   String
+  content_id Int      @unique
+  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model PklReports {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  author_id    Int
+  author       Students @relation(fields: [author_id], references: [id])
+  pages        Int
+  file_url     String
+  published_at DateTime
+  content_id   Int      @unique
+  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+model Students {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  name       String
+  major_id   Int
+  major      Majors   @relation(fields: [major_id], references: [id])
+  birthplace String
+  birthdate  DateTime
+  age        Int
+  status     Boolean
+
+  VideoPodcasts VideoPodcasts[]
+
+  AudioPodcasts AudioPodcasts[]
+
+  Novel      Novels[]
+  PklReports PklReports[]
+}
+
+model Majors {
+  id          Int        @id @default(autoincrement())
+  uuid        String     @unique @default(uuid())
+  name        String
+  image       String
+  description String
+  avatar      String
+  students    Students[]
+}
