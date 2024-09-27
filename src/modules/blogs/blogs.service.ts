@@ -14,7 +14,7 @@ export class BlogsService {
       description,
       subjects,
       category_uuid,
-      author_id,
+      author_uuid,
       blog_content,
       published,
       published_at,
@@ -30,7 +30,7 @@ export class BlogsService {
         category: { connect: { uuid: category_uuid } },
         Blogs: {
           create: {
-            author: { connect: { uuid: author_id } },
+            author: { connect: { uuid: author_uuid } },
             blog_content,
             published,
             published_at,
@@ -56,7 +56,11 @@ export class BlogsService {
         tags: true,
         comments: true,
         likes: true,
-        Blogs: true,
+        Blogs: {
+          include: {
+            author: true,
+          },
+        },
       },
     });
 
@@ -69,17 +73,11 @@ export class BlogsService {
         description: content.description,
         subjects: content.subjects,
         updated_at: content.updated_at,
-        category: {
-          id: content.category.uuid,
-          name: content.category.name,
-        },
-        content: {
-          id: content.Blogs[0].uuid,
-          author_id: content.Blogs[0].author_id,
-          blog_content: content.Blogs[0].blog_content,
-          published: content.Blogs[0].published,
-          published_at: content.Blogs[0].published_at,
-        },
+        category: content.category.name,
+        author: content.Blogs[0].author.full_name,
+        blog_content: content.Blogs[0].blog_content,
+        published: content.Blogs[0].published,
+        published_at: content.Blogs[0].published_at,
         tags: content.tags.map((tag) => ({
           id: tag.uuid,
           name: tag.name,
@@ -100,15 +98,19 @@ export class BlogsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(uuid: string) {
     const content = await this.prisma.contents.findUnique({
-      where: { type: 'Blog', uuid: id },
+      where: { type: 'Blog', uuid },
       include: {
         category: true,
         tags: true,
         comments: true,
         likes: true,
-        Blogs: true,
+        Blogs: {
+          include: {
+            author: true,
+          },
+        },
       },
     });
 
@@ -121,17 +123,11 @@ export class BlogsService {
         description: content.description,
         subjects: content.subjects,
         updated_at: content.updated_at,
-        category: {
-          id: content.category.uuid,
-          name: content.category.name,
-        },
-        content: {
-          id: content.Blogs[0].uuid,
-          author_id: content.Blogs[0].author_id,
-          blog_content: content.Blogs[0].blog_content,
-          published: content.Blogs[0].published,
-          published_at: content.Blogs[0].published_at,
-        },
+        category: content.category.name,
+        author: content.Blogs[0].author.full_name,
+        blog_content: content.Blogs[0].blog_content,
+        published: content.Blogs[0].published,
+        published_at: content.Blogs[0].published_at,
         tags: content.tags.map((tag) => ({
           id: tag.uuid,
           name: tag.name,
@@ -152,30 +148,41 @@ export class BlogsService {
     };
   }
 
-  async update(id: string, updateBlogDto: UpdateBlogDto) {
+  async update(uuid: string, updateBlogDto: UpdateBlogDto) {
     const {
       title,
       thumbnail,
       description,
       subjects,
       category_uuid,
-      author_id,
+      author_uuid,
       blog_content,
       published,
       published_at,
     } = updateBlogDto;
 
     const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: id },
+      where: { uuid },
     });
 
     if (!isExists) {
-      throw new NotFoundException(`Blog with Id ${id} does not exist`);
+      throw new NotFoundException(`Blog with Id ${uuid} does not exist`);
+    }
+
+    const author = await this.prisma.students.findUnique({
+      where: { uuid: author_uuid },
+      select: { id: true },
+    });
+
+    if (!author) {
+      throw new NotFoundException(
+        `Creator with ID ${author_uuid} does not exist`,
+      );
     }
 
     const content = await this.prisma.contents.update({
       where: {
-        uuid: id,
+        uuid: uuid,
         type: 'Blog',
       },
       data: {
@@ -186,9 +193,9 @@ export class BlogsService {
         category: { connect: { uuid: category_uuid } },
         Blogs: {
           update: {
-            where: { id: isExists.id },
+            where: { content_id: isExists.id },
             data: {
-              author: { connect: { uuid: author_id } },
+              author_id: author.id,
               blog_content,
               published,
               published_at,
@@ -207,9 +214,17 @@ export class BlogsService {
     };
   }
 
-  async remove(id: string) {
+  async remove(uuid: string) {
+    const isExists = await this.prisma.contents.findUnique({
+      where: { uuid },
+    });
+
+    if (!isExists) {
+      throw new NotFoundException(`Audio with UUID ${uuid} does not exist`);
+    }
+
     const content = await this.prisma.contents.delete({
-      where: { uuid: id, type: 'Blog' },
+      where: { uuid: uuid, type: 'Blog' },
     });
     return {
       status: 'success',

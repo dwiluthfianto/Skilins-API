@@ -8,15 +8,18 @@ export class CreateBlogDto extends ContentDto {
     type: String,
   })
   @IsNotEmpty()
-  author_id: string;
+  author_uuid: string;
 
   @ApiProperty({ example: 'This is a blog content', type: String })
   @IsNotEmpty()
   blog_content: string;
 
-  @ApiProperty({ example: 1, type: Number })
+  @ApiProperty({
+    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    type: String,
+  })
   @IsNotEmpty()
-  content_id: number;
+  content_uuid: string;
 
   @ApiProperty({ example: true, type: Boolean })
   @IsNotEmpty()

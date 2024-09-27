@@ -1,16 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { $Enums, Contents } from '@prisma/client';
-import { IsNotEmpty } from 'class-validator';
+import { $Enums, Comments, Likes, Tags } from '@prisma/client';
+import { Contents } from 'src/modules/contents/content.interface';
 
 export class Blog implements Contents {
-  @ApiProperty({ example: 1, type: Number })
-  id: number;
-
   @ApiProperty({
     example: '36e401d8-a949-404a-bd55-d9115bbc319a',
     type: String,
   })
-  uuid: string;
+  id: string | number;
 
   @ApiProperty({
     example: 'Ebook',
@@ -56,23 +53,31 @@ export class Blog implements Contents {
 
   @ApiProperty({
     example: 1,
-    type: Number,
+    type: String,
   })
-  category_id: number;
+  category_uuid: string;
 
-  @ApiProperty({ example: 1, type: Number })
-  author_id: number;
+  @ApiProperty({
+    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    type: String,
+  })
+  author_uuid: string;
 
   @ApiProperty({ example: 'This is a blog content', type: String })
   blog_content: string;
-
-  @ApiProperty({ example: 1, type: Number })
-  @IsNotEmpty()
-  content_id: number;
 
   @ApiProperty({ example: true, type: Boolean })
   published: boolean = false;
 
   @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
   published_at: Date;
+
+  @ApiProperty({ example: '[]', type: String })
+  tags: Tags[];
+
+  @ApiProperty({ example: '[]', type: String })
+  comments: Comments[];
+
+  @ApiProperty({ example: '[]', type: String })
+  likes: Likes[];
 }
