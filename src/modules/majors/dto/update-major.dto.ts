@@ -5,17 +5,17 @@ import { IsOptional } from 'class-validator';
 export class UpdateMajorDto extends PartialType(CreateMajorDto) {
   @ApiPropertyOptional({ example: 'This is a name', type: String })
   @IsOptional()
-  name: string;
+  name?: string;
 
   @ApiPropertyOptional({ example: 'This is an image', type: String })
   @IsOptional()
-  image: string;
+  image_url?: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })
   @IsOptional()
-  description: string;
+  description?: string;
 
   @ApiPropertyOptional({ example: 'This is a avatar', type: String })
   @IsOptional()
-  avatar: string;
+  avatar_url?: string;
 }

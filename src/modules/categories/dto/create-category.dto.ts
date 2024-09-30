@@ -8,7 +8,7 @@ export class CreateCategoryDto {
 
   @ApiProperty({ example: 'https://example.com/image.jpg', type: String })
   @IsNotEmpty()
-  avatar: string;
+  avatar_url: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })
   @IsOptional()

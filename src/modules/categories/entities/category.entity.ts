@@ -11,7 +11,7 @@ export class Category {
   name: string;
 
   @ApiProperty({ example: 'https://example.com/image.jpg', type: String })
-  avatar: string;
+  avatar_url: string;
 
   @ApiProperty({ example: 'This is a description', type: String })
   description: string;

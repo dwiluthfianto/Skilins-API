@@ -8,11 +8,11 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
-    const { name, avatar, description } = createCategoryDto;
+    const { name, avatar_url, description } = createCategoryDto;
     const category = await this.prisma.categories.create({
       data: {
         name,
-        avatar,
+        avatar_url: avatar_url,
         description,
       },
     });
@@ -32,7 +32,7 @@ export class CategoriesService {
       status: 'success',
       data: categories.map((category) => ({
         uuid: category.uuid,
-        avatar: category.avatar,
+        avatar_url: category.avatar_url,
         name: category.name,
         description: category.description,
       })),
@@ -47,7 +47,7 @@ export class CategoriesService {
       status: 'success',
       data: {
         uuid: category.uuid,
-        avatar: category.avatar,
+        avatar_url: category.avatar_url,
         name: category.name,
         description: category.description,
       },
@@ -55,14 +55,14 @@ export class CategoriesService {
   }
 
   async update(uuid: string, updateCategoryDto: UpdateCategoryDto) {
-    const { name, avatar, description } = updateCategoryDto;
+    const { name, avatar_url, description } = updateCategoryDto;
     const category = await this.prisma.categories.update({
       where: {
         uuid,
       },
       data: {
         name,
-        avatar,
+        avatar_url,
         description,
       },
     });

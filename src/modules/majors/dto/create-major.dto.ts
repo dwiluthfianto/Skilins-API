@@ -8,13 +8,13 @@ export class CreateMajorDto {
 
   @ApiPropertyOptional({ example: 'This is an image', type: String })
   @IsOptional()
-  image: string;
+  image_url?: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })
   @IsOptional()
-  description: string;
+  description?: string;
 
   @ApiPropertyOptional({ example: 'This is a avatar', type: String })
   @IsOptional()
-  avatar: string;
+  avatar_url?: string;
 }

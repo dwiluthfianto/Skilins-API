@@ -8,7 +8,10 @@ export class MajorsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createMajorDto: CreateMajorDto) {
-    const major = await this.prisma.majors.create({ data: createMajorDto });
+    const { name, avatar_url, description, image_url } = createMajorDto;
+    const major = await this.prisma.majors.create({
+      data: { name, avatar_url, description, image_url },
+    });
 
     return {
       status: 'success',
@@ -23,8 +26,8 @@ export class MajorsService {
       status: 'success',
       data: majors.map((major) => ({
         id: major.uuid,
-        image: major.image,
-        avatar: major.avatar,
+        image_url: major.image_url,
+        avatar_url: major.avatar_url,
         name: major.name,
         description: major.description,
       })),
@@ -40,8 +43,8 @@ export class MajorsService {
     return {
       status: 'success',
       data: {
-        image: major.image,
-        avatar: major.avatar,
+        image_url: major.image_url,
+        avatar_url: major.avatar_url,
         name: major.name,
         description: major.description,
       },
@@ -49,14 +52,14 @@ export class MajorsService {
   }
 
   async update(id: string, updateMajorDto: UpdateMajorDto) {
-    const { name, avatar, description, image } = updateMajorDto;
+    const { name, avatar_url, description, image_url } = updateMajorDto;
     const major = await this.prisma.majors.update({
       where: { uuid: id },
       data: {
         name,
-        avatar,
+        avatar_url,
         description,
-        image,
+        image_url,
       },
     });
 

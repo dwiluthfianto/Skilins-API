@@ -16,6 +16,7 @@ import { TagsModule } from './modules/tags/tags.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { RolesModule } from './modules/roles/roles.module';
     LikesModule,
     CommentsModule,
     RolesModule,
+    SupabaseModule,
   ],
   controllers: [],
   providers: [PrismaService],
