@@ -16,6 +16,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   // app.useGlobalFilters(new GlobalExceptionFilter());
+  app.enableCors();
   await app.listen(8000);
 }
 bootstrap();

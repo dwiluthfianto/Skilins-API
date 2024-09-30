@@ -1,13 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // import { ContentType } from '@prisma/client';
 import { IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { UpdateTagDto } from 'src/modules/tags/dto/update-tag.dto';
 
 export class ContentDto {
-  // @ApiProperty({ enum: ContentType })
-  // @IsEnum(ContentType)
-  // @IsNotEmpty()
-  // type: ContentType;
-
   @ApiProperty({ example: 'Content Title', type: String })
   @IsNotEmpty()
   @MinLength(10)
@@ -31,4 +27,17 @@ export class ContentDto {
   })
   @IsNotEmpty()
   category_uuid: string;
+
+  @ApiPropertyOptional({
+    example: [
+      {
+        name: 'this is a tag name',
+        avatar_url: 'https://example.com/avatar.jpg',
+        description: 'this is a description',
+      },
+    ],
+    type: () => UpdateTagDto,
+  })
+  @IsOptional()
+  tags: UpdateTagDto[];
 }

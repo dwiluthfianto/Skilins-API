@@ -12,10 +12,10 @@ import {
 import { MajorsService } from './majors.service';
 import { CreateMajorDto } from './dto/create-major.dto';
 import { UpdateMajorDto } from './dto/update-major.dto';
-import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Major } from './entities/major.entity';
-
-@Controller('majors')
+@ApiTags('Major')
+@Controller({ path: 'api/majors', version: '1' })
 export class MajorsController {
   constructor(private readonly majorsService: MajorsService) {}
 

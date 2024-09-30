@@ -52,7 +52,7 @@ CREATE TABLE "Comments" (
 );
 
 -- CreateTable
-CREATE TABLE "Content" (
+CREATE TABLE "Contents" (
     "id" SERIAL NOT NULL,
     "uuid" TEXT NOT NULL,
     "type" "ContentType" NOT NULL,
@@ -64,14 +64,16 @@ CREATE TABLE "Content" (
     "updated_at" TIMESTAMP(3) NOT NULL,
     "category_id" INTEGER NOT NULL,
 
-    CONSTRAINT "Content_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Contents_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Categories" (
     "id" SERIAL NOT NULL,
     "uuid" TEXT NOT NULL,
+    "avatar_url" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
 
     CONSTRAINT "Categories_pkey" PRIMARY KEY ("id")
 );
@@ -80,7 +82,7 @@ CREATE TABLE "Categories" (
 CREATE TABLE "Tags" (
     "id" SERIAL NOT NULL,
     "uuid" TEXT NOT NULL,
-    "avatar" TEXT NOT NULL,
+    "avatar_url" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
 
@@ -168,12 +170,14 @@ CREATE TABLE "PklReports" (
 CREATE TABLE "Students" (
     "id" SERIAL NOT NULL,
     "uuid" TEXT NOT NULL,
+    "image_url" TEXT NOT NULL,
+    "nis" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "major_id" INTEGER NOT NULL,
     "birthplace" TEXT NOT NULL,
     "birthdate" TIMESTAMP(3) NOT NULL,
     "age" INTEGER NOT NULL,
-    "status" TEXT NOT NULL,
+    "status" BOOLEAN NOT NULL,
 
     CONSTRAINT "Students_pkey" PRIMARY KEY ("id")
 );
@@ -183,15 +187,15 @@ CREATE TABLE "Majors" (
     "id" SERIAL NOT NULL,
     "uuid" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "image" TEXT NOT NULL,
+    "image_url" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "avatar" TEXT NOT NULL,
+    "avatar_url" TEXT NOT NULL,
 
     CONSTRAINT "Majors_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "_ContentToTags" (
+CREATE TABLE "_ContentsToTags" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL
 );
@@ -215,10 +219,19 @@ CREATE UNIQUE INDEX "Likes_uuid_key" ON "Likes"("uuid");
 CREATE UNIQUE INDEX "Comments_uuid_key" ON "Comments"("uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Content_uuid_key" ON "Content"("uuid");
+CREATE UNIQUE INDEX "Contents_uuid_key" ON "Contents"("uuid");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Categories_uuid_key" ON "Categories"("uuid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Categories_name_key" ON "Categories"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Tags_uuid_key" ON "Tags"("uuid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Tags_name_key" ON "Tags"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "VideoPodcasts_uuid_key" ON "VideoPodcasts"("uuid");
@@ -260,70 +273,73 @@ CREATE UNIQUE INDEX "PklReports_content_id_key" ON "PklReports"("content_id");
 CREATE UNIQUE INDEX "Students_uuid_key" ON "Students"("uuid");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Students_nis_key" ON "Students"("nis");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Majors_uuid_key" ON "Majors"("uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_ContentToTags_AB_unique" ON "_ContentToTags"("A", "B");
+CREATE UNIQUE INDEX "_ContentsToTags_AB_unique" ON "_ContentsToTags"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_ContentToTags_B_index" ON "_ContentToTags"("B");
+CREATE INDEX "_ContentsToTags_B_index" ON "_ContentsToTags"("B");
 
 -- AddForeignKey
 ALTER TABLE "Users" ADD CONSTRAINT "Users_roles_id_fkey" FOREIGN KEY ("roles_id") REFERENCES "Roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Likes" ADD CONSTRAINT "Likes_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Likes" ADD CONSTRAINT "Likes_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Likes" ADD CONSTRAINT "Likes_liked_by_fkey" FOREIGN KEY ("liked_by") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comments" ADD CONSTRAINT "Comments_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Comments" ADD CONSTRAINT "Comments_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comments" ADD CONSTRAINT "Comments_commented_by_fkey" FOREIGN KEY ("commented_by") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Content" ADD CONSTRAINT "Content_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "Categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Contents" ADD CONSTRAINT "Contents_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "Categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VideoPodcasts" ADD CONSTRAINT "VideoPodcasts_creator_id_fkey" FOREIGN KEY ("creator_id") REFERENCES "Students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "VideoPodcasts" ADD CONSTRAINT "VideoPodcasts_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "VideoPodcasts" ADD CONSTRAINT "VideoPodcasts_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AudioPodcasts" ADD CONSTRAINT "AudioPodcasts_creator_id_fkey" FOREIGN KEY ("creator_id") REFERENCES "Students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AudioPodcasts" ADD CONSTRAINT "AudioPodcasts_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AudioPodcasts" ADD CONSTRAINT "AudioPodcasts_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Blogs" ADD CONSTRAINT "Blogs_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Blogs" ADD CONSTRAINT "Blogs_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Blogs" ADD CONSTRAINT "Blogs_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Ebooks" ADD CONSTRAINT "Ebooks_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Ebooks" ADD CONSTRAINT "Ebooks_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Novels" ADD CONSTRAINT "Novels_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "Students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Novels" ADD CONSTRAINT "Novels_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Novels" ADD CONSTRAINT "Novels_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PklReports" ADD CONSTRAINT "PklReports_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "Students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PklReports" ADD CONSTRAINT "PklReports_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Content"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PklReports" ADD CONSTRAINT "PklReports_content_id_fkey" FOREIGN KEY ("content_id") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Students" ADD CONSTRAINT "Students_major_id_fkey" FOREIGN KEY ("major_id") REFERENCES "Majors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_ContentToTags" ADD CONSTRAINT "_ContentToTags_A_fkey" FOREIGN KEY ("A") REFERENCES "Content"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_ContentsToTags" ADD CONSTRAINT "_ContentsToTags_A_fkey" FOREIGN KEY ("A") REFERENCES "Contents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_ContentToTags" ADD CONSTRAINT "_ContentToTags_B_fkey" FOREIGN KEY ("B") REFERENCES "Tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_ContentsToTags" ADD CONSTRAINT "_ContentsToTags_B_fkey" FOREIGN KEY ("B") REFERENCES "Tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;

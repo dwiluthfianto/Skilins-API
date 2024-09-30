@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Injectable()
 export class NovelsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly uuidHelper: UuidHelper,
+  ) {}
 
   async create(createNovelDto: CreateNovelDto) {
     const {
@@ -14,20 +18,10 @@ export class NovelsService {
       description,
       subjects,
       category_uuid,
-      author_id,
+      author_uuid,
       pages,
       file_url,
     } = createNovelDto;
-
-    // // Cari author_id berdasarkan uuid
-    // const author = await this.prisma.students.findUnique({
-    //   where: { uuid: author_id },
-    //   select: { id: true }, // Ambil author_id (id)
-    // });
-
-    // if (!author) {
-    //   throw new Error('Author not found');
-    // }
 
     const content = await this.prisma.contents.create({
       data: {
@@ -39,7 +33,7 @@ export class NovelsService {
         category: { connect: { uuid: category_uuid } },
         Novel: {
           create: {
-            author: { connect: { uuid: author_id } },
+            author: { connect: { uuid: author_uuid } },
             pages,
             file_url,
           },
@@ -51,7 +45,7 @@ export class NovelsService {
       status: 'success',
       message: 'Novel succesfully added.',
       data: {
-        id: content.uuid,
+        uuid: content.uuid,
       },
     };
   }
@@ -75,7 +69,7 @@ export class NovelsService {
     return {
       status: 'success',
       data: contents.map((content) => ({
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
@@ -87,18 +81,18 @@ export class NovelsService {
         pages: content.Novel[0].pages,
         file_url: content.Novel[0].file_url,
         tags: content.tags.map((tag) => ({
-          id: tag.uuid,
+          uuid: tag.uuid,
           name: tag.name,
         })),
         comments: content.comments.map((comment) => ({
-          id: comment.uuid,
-          subject: comment.subject,
+          uuid: comment.uuid,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
         likes: content.likes.map((like) => ({
-          id: like.uuid,
+          uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
         })),
@@ -106,9 +100,9 @@ export class NovelsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(uuid: string) {
     const content = await this.prisma.contents.findUnique({
-      where: { uuid: id, type: 'Novel' },
+      where: { uuid, type: 'Novel' },
       include: {
         category: true,
         tags: true,
@@ -123,13 +117,13 @@ export class NovelsService {
     });
 
     if (!content) {
-      throw new NotFoundException(`Eovel with ID ${id} does not exist.`);
+      throw new NotFoundException(`Eovel with ID ${uuid} does not exist.`);
     }
 
     return {
       status: 'success',
       data: {
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
@@ -141,18 +135,18 @@ export class NovelsService {
         pages: content.Novel[0].pages,
         file_url: content.Novel[0].file_url,
         tags: content.tags.map((tag) => ({
-          id: tag.uuid,
+          uuid: tag.uuid,
           name: tag.name,
         })),
         comments: content.comments.map((comment) => ({
-          id: comment.uuid,
-          subject: comment.subject,
+          uuid: comment.uuid,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
         likes: content.likes.map((like) => ({
-          id: like.uuid,
+          uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
         })),
@@ -160,7 +154,7 @@ export class NovelsService {
     };
   }
 
-  async update(id: string, updateNovelDto: UpdateNovelDto) {
+  async update(uuid: string, updateNovelDto: UpdateNovelDto) {
     const {
       title,
       thumbnail,
@@ -171,17 +165,13 @@ export class NovelsService {
       file_url,
     } = updateNovelDto;
 
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: id, type: 'Novel' },
-    });
+    const content = await this.uuidHelper.validateUuidContent(uuid);
+    const category = await this.uuidHelper.validateUuidContent(category_uuid);
+    const author = await this.uuidHelper.validateUuidContent(category_uuid);
 
-    if (!isExists) {
-      throw new NotFoundException(`Novel with ID ${id} does not exist.`);
-    }
-
-    const content = await this.prisma.contents.update({
+    const novel = await this.prisma.contents.update({
       where: {
-        uuid: id,
+        uuid,
         type: 'Novel',
       },
       data: {
@@ -189,11 +179,12 @@ export class NovelsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { id: category.id } },
         Novel: {
           update: {
-            where: { content_id: isExists.id },
+            where: { content_id: content.id },
             data: {
+              author_id: author.id,
               pages,
               file_url,
             },
@@ -206,29 +197,23 @@ export class NovelsService {
       status: 'success',
       message: 'Novel succesfully updated.',
       data: {
-        id: content.uuid,
+        uuid: novel.uuid,
       },
     };
   }
 
-  async remove(id: string) {
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: id, type: 'Novel' },
-    });
+  async remove(uuid: string) {
+    await this.uuidHelper.validateUuidContent(uuid);
 
-    if (!isExists) {
-      throw new NotFoundException(`Novel with ID ${id} not found.`);
-    }
-
-    const content = await this.prisma.contents.delete({
-      where: { uuid: id, type: 'Novel' },
+    const novel = await this.prisma.contents.delete({
+      where: { uuid, type: 'Novel' },
     });
 
     return {
       status: 'success',
       message: 'Novel have been removed',
       data: {
-        id: content.uuid,
+        uuid: novel.uuid,
       },
     };
   }

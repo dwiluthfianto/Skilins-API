@@ -1,7 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateStudentDto {
+  @ApiProperty({ example: 'https://example.com/siswa.jpg', type: String })
+  @IsOptional()
+  image_url?: string;
+
+  @ApiProperty({ example: '123456', type: String })
+  @IsNotEmpty()
+  nis: string;
+
   @ApiProperty({ example: 'Jane Doe', type: String })
   @IsNotEmpty()
   name: string;
@@ -11,7 +19,7 @@ export class CreateStudentDto {
     type: String,
   })
   @IsNotEmpty()
-  major_id: string;
+  major_uuid: string;
 
   @ApiProperty({ example: 'Bogor', type: String })
   @IsNotEmpty()
@@ -23,7 +31,7 @@ export class CreateStudentDto {
 
   @ApiProperty({ example: 17, type: Number })
   @IsNotEmpty()
-  age;
+  age: number;
 
   @ApiProperty({ example: 'true', type: Boolean })
   @IsNotEmpty()

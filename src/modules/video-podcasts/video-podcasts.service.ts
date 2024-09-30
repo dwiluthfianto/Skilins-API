@@ -80,7 +80,7 @@ export class VideoPodcastsService {
         })),
         comments: video.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
@@ -132,7 +132,7 @@ export class VideoPodcastsService {
         })),
         comments: video.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,

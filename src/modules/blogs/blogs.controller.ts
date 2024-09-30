@@ -12,10 +12,11 @@ import {
 import { BlogsService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
-import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Blog } from './entities/blog.entity';
 
-@Controller('api/contents/blogs')
+@ApiTags('Contents')
+@Controller({ path: 'api/contents/blogs', version: '1' })
 export class BlogsController {
   constructor(private readonly blogsService: BlogsService) {}
 

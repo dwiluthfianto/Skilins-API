@@ -8,7 +8,7 @@ export class CreateNovelDto extends ContentDto {
     type: String,
   })
   @IsNotEmpty()
-  author_id: string;
+  author_uuid: string;
 
   @ApiProperty({ example: 0, type: Number })
   @IsNotEmpty()

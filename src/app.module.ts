@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
-import { ContentsModule } from './modules/contents/contents.module';
 import { EbooksModule } from './modules/ebooks/ebooks.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { NovelsModule } from './modules/novels/novels.module';
@@ -12,10 +11,14 @@ import { BlogsModule } from './modules/blogs/blogs.module';
 import { PklReportsModule } from './modules/pkl-reports/pkl-reports.module';
 import { StudentsModule } from './modules/students/students.module';
 import { MajorsModule } from './modules/majors/majors.module';
+import { UuidModule } from './common/helpers/uuid.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { LikesModule } from './modules/likes/likes.module';
+import { CommentsModule } from './modules/comments/comments.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
-    ContentsModule,
     PrismaModule,
     EbooksModule,
     CategoriesModule,
@@ -26,6 +29,11 @@ import { MajorsModule } from './modules/majors/majors.module';
     PklReportsModule,
     StudentsModule,
     MajorsModule,
+    UuidModule,
+    TagsModule,
+    LikesModule,
+    CommentsModule,
+    RolesModule,
   ],
   controllers: [],
   providers: [PrismaService],

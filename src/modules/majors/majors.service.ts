@@ -13,7 +13,7 @@ export class MajorsService {
     return {
       status: 'success',
       message: 'Majors succesfully added!',
-      data: { id: major.uuid },
+      data: { uuid: major.uuid },
     };
   }
 

@@ -6,7 +6,7 @@ export class UpdateNovelDto extends PartialType(CreateNovelDto) {
     example: '36e401d8-a949-404a-bd55-d9115bbc319a',
     type: String,
   })
-  author_id: string;
+  author_uuid: string;
 
   @ApiPropertyOptional({ example: 0, type: Number })
   pages: number;

@@ -49,30 +49,30 @@ export class EbooksController {
     return this.ebooksService.findAll();
   }
 
-  @Get(':id')
+  @Get(':uuid')
   @ApiOkResponse({
     type: Ebook,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
-    return this.ebooksService.findOne(id);
+  findOne(@Param('uuid') uuid: string) {
+    return this.ebooksService.findOne(uuid);
   }
 
-  @Patch(':id')
+  @Patch(':uuid')
   @ApiOkResponse({
     type: Ebook,
   })
   @HttpCode(HttpStatus.OK)
-  update(@Param('id') id: string, @Body() updateEbookDto: UpdateEbookDto) {
-    return this.ebooksService.update(id, updateEbookDto);
+  update(@Param('uuid') uuid: string, @Body() updateEbookDto: UpdateEbookDto) {
+    return this.ebooksService.update(uuid, updateEbookDto);
   }
 
-  @Delete(':id')
+  @Delete(':uuid')
   @ApiOkResponse({
     type: Ebook,
   })
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
-    return this.ebooksService.remove(id);
+  remove(@Param('uuid') uuid: string) {
+    return this.ebooksService.remove(uuid);
   }
 }

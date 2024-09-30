@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Users {
@@ -48,16 +49,15 @@ model Likes {
 }
 
 model Comments {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
-  content_id   Int
-  content      Contents @relation(fields: [content_id], references: [id])
-  subject      String
-  comment      String
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  commented_by Int
-  user         Users    @relation(fields: [commented_by], references: [id])
+  id              Int      @id @default(autoincrement())
+  uuid            String   @unique @default(uuid())
+  content_id      Int
+  content         Contents @relation(fields: [content_id], references: [id])
+  comment_content String
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  commented_by    Int
+  user            Users    @relation(fields: [commented_by], references: [id])
 }
 
 enum ContentType {
@@ -101,7 +101,7 @@ model Contents {
 model Categories {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
-  avatar      String
+  avatar_url  String
   name        String     @unique
   description String
   content     Contents[]
@@ -109,8 +109,8 @@ model Categories {
 
 model Tags {
   id          Int        @id @default(autoincrement())
-  uuid        String     @default(uuid())
-  avatar      String
+  uuid        String     @unique @default(uuid())
+  avatar_url  String
   name        String     @unique
   description String
   content     Contents[]
@@ -189,6 +189,8 @@ model PklReports {
 model Students {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
+  image_url  String
+  nis        String   @unique
   name       String
   major_id   Int
   major      Majors   @relation(fields: [major_id], references: [id])
@@ -209,8 +211,8 @@ model Majors {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
   name        String
-  image       String
+  image_url   String
   description String
-  avatar      String
+  avatar_url  String
   students    Students[]
 }

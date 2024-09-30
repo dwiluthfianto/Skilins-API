@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { $Enums, Comments, Likes, Tags } from '@prisma/client';
+import { Comments, Likes, Tags } from '@prisma/client';
 import { Contents } from 'src/modules/contents/content.interface';
 
 export class Blog implements Contents {
@@ -7,13 +7,7 @@ export class Blog implements Contents {
     example: '36e401d8-a949-404a-bd55-d9115bbc319a',
     type: String,
   })
-  id: string | number;
-
-  @ApiProperty({
-    example: 'Ebook',
-    type: $Enums.ContentType,
-  })
-  type: $Enums.ContentType;
+  uuid: string;
 
   @ApiProperty({
     example: 'This is a title',

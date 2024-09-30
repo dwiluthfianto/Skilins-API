@@ -7,7 +7,7 @@ export class AudioPodcast implements Contents {
     example: '36e401d8-a949-404a-bd55-d9115bbc319a',
     type: String,
   })
-  id: string;
+  uuid: string;
 
   @ApiProperty({
     example: 'This is a title',

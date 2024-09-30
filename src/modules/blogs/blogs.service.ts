@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Injectable()
 export class BlogsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly uuidHelper: UuidHelper,
+  ) {}
 
   async create(createBlogDto: CreateBlogDto) {
     const {
@@ -84,7 +88,7 @@ export class BlogsService {
         })),
         comments: content.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
@@ -114,6 +118,9 @@ export class BlogsService {
       },
     });
 
+    if (!content) {
+      throw new NotFoundException(`Blog with uuid ${uuid} does not exist`);
+    }
     return {
       status: 'success',
       data: {
@@ -134,7 +141,7 @@ export class BlogsService {
         })),
         comments: content.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
@@ -161,26 +168,11 @@ export class BlogsService {
       published_at,
     } = updateBlogDto;
 
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid },
-    });
+    const content = await this.uuidHelper.validateUuidContent(uuid);
+    const author = await this.uuidHelper.validateUuidCreator(author_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
 
-    if (!isExists) {
-      throw new NotFoundException(`Blog with Id ${uuid} does not exist`);
-    }
-
-    const author = await this.prisma.students.findUnique({
-      where: { uuid: author_uuid },
-      select: { id: true },
-    });
-
-    if (!author) {
-      throw new NotFoundException(
-        `Creator with ID ${author_uuid} does not exist`,
-      );
-    }
-
-    const content = await this.prisma.contents.update({
+    const blog = await this.prisma.contents.update({
       where: {
         uuid: uuid,
         type: 'Blog',
@@ -190,10 +182,10 @@ export class BlogsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { id: category.id } },
         Blogs: {
           update: {
-            where: { content_id: isExists.id },
+            where: { content_id: content.id },
             data: {
               author_id: author.id,
               blog_content,
@@ -209,7 +201,7 @@ export class BlogsService {
       status: 'success',
       message: 'Blog succefully updated',
       data: {
-        id: content.uuid,
+        id: blog.uuid,
       },
     };
   }

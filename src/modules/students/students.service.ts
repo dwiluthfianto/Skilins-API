@@ -7,101 +7,130 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
   async create(createStudentDto: CreateStudentDto) {
-    const { name, major_id, birthplace, birthdate, age, status } =
-      createStudentDto;
+    const {
+      nis,
+      image_url,
+      name,
+      major_uuid,
+      birthplace,
+      birthdate,
+      age,
+      status,
+    } = createStudentDto;
     const student = await this.prisma.students.create({
       data: {
+        nis,
+        image_url,
         name,
         birthdate,
         birthplace,
         age,
         status,
-        major: { connect: { uuid: major_id } },
+        major: { connect: { uuid: major_uuid } },
       },
     });
 
     return {
       status: 'success',
       message: 'student succesfully added!',
-      data: { id: student.uuid },
+      data: { uuid: student.uuid },
     };
   }
 
   async findAll() {
-    const students = await this.prisma.students.findMany();
+    const students = await this.prisma.students.findMany({
+      include: { major: true },
+    });
     return {
       status: 'success',
       data: students.map((student) => ({
-        id: student.uuid,
+        uuid: student.uuid,
+        image_url: student.image_url,
+        nis: student.nis,
         name: student.name,
         birthplace: student.birthplace,
         birthdate: student.birthdate,
         age: student.age,
+        major: student.major.name,
         status: student.status,
       })),
     };
   }
 
-  async findOne(id: string) {
+  async findOne(uuid: string) {
     const student = await this.prisma.students.findUnique({
-      where: { uuid: id },
+      where: { uuid },
+      include: { major: true },
     });
 
     if (!student) {
-      throw new NotFoundException(`Student with Id ${id} does not exist`);
+      throw new NotFoundException(`Student with Id ${uuid} does not exist`);
     }
     return {
       status: 'success',
       data: {
-        id: student.uuid,
+        uuid: student.uuid,
+        image_url: student.image_url,
+        nis: student.nis,
         name: student.name,
         birthplace: student.birthplace,
         birthdate: student.birthdate,
         age: student.age,
+        major: student.major.name,
         status: student.status,
       },
     };
   }
 
-  async update(id: string, updateStudentDto: UpdateStudentDto) {
-    const { name, major_id, birthplace, birthdate, age, status } =
-      updateStudentDto;
+  async update(uuid: string, updateStudentDto: UpdateStudentDto) {
+    const {
+      image_url,
+      nis,
+      name,
+      major_uuid,
+      birthplace,
+      birthdate,
+      age,
+      status,
+    } = updateStudentDto;
     const student = await this.prisma.students.update({
-      where: { uuid: id },
+      where: { uuid },
       data: {
+        image_url,
+        nis,
         name,
         birthdate,
         birthplace,
         age,
         status,
-        major: { connect: { uuid: major_id } },
+        major: { connect: { uuid: major_uuid } },
       },
     });
 
     return {
       status: 'success',
       message: 'student succesfully updated!',
-      data: { id: student.uuid },
+      data: { uuid: student.uuid },
     };
   }
 
-  async remove(id: string) {
+  async remove(uuid: string) {
     const isExist = await this.prisma.students.findUnique({
-      where: { uuid: id },
+      where: { uuid },
     });
 
     if (!isExist) {
-      throw new NotFoundException(`Student with Id ${id} does not exist`);
+      throw new NotFoundException(`Student with Id ${uuid} does not exist`);
     }
     await this.prisma.students.delete({
-      where: { uuid: id },
+      where: { uuid },
     });
 
     return {
       status: 'success',
       message: 'student succesfully deleted',
       data: {
-        id,
+        uuid,
       },
     };
   }

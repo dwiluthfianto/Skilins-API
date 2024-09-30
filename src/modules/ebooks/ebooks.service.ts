@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEbookDto } from './dto/create-ebook.dto';
 import { UpdateEbookDto } from './dto/update-ebook.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Injectable()
 export class EbooksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly uuidHelper: UuidHelper,
+  ) {}
 
   async create(createContentDto: CreateEbookDto) {
     const {
@@ -87,7 +91,7 @@ export class EbooksService {
         })),
         comments: content.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
@@ -101,9 +105,9 @@ export class EbooksService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(uuid: string) {
     const content = await this.prisma.contents.findUnique({
-      where: { uuid: id },
+      where: { uuid },
       include: {
         category: true,
         tags: true,
@@ -114,7 +118,7 @@ export class EbooksService {
     });
 
     if (!content) {
-      throw new NotFoundException(`Ebook with ${id} does not exist.`);
+      throw new NotFoundException(`Ebook with ${uuid} does not exist.`);
     }
 
     return {
@@ -140,7 +144,7 @@ export class EbooksService {
         })),
         comments: content.comments.map((comment) => ({
           id: comment.uuid,
-          subject: comment.subject,
+          subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
@@ -154,7 +158,7 @@ export class EbooksService {
     };
   }
 
-  async update(id: string, updateContentDto: UpdateEbookDto) {
+  async update(uuid: string, updateContentDto: UpdateEbookDto) {
     const {
       title,
       thumbnail,
@@ -169,25 +173,20 @@ export class EbooksService {
       release_date,
     } = updateContentDto;
 
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: id },
-    });
+    const content = await this.uuidHelper.validateUuidContent(uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
 
-    if (!isExists) {
-      throw new NotFoundException(`Ebook with ID ${id} not found`);
-    }
-
-    const content = await this.prisma.contents.update({
-      where: { uuid: id, type: 'Ebook' },
+    const ebook = await this.prisma.contents.update({
+      where: { uuid, type: 'Ebook' },
       data: {
         title,
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { id: category.id } },
         Ebooks: {
           update: {
-            where: { content_id: isExists.id },
+            where: { content_id: content.id },
             data: { author, pages, publication, file_url, isbn, release_date },
           },
         },
@@ -198,29 +197,23 @@ export class EbooksService {
       status: 'success',
       message: 'Ebook succesfully updated.',
       data: {
-        id: content.uuid,
+        id: ebook.uuid,
       },
     };
   }
 
-  async remove(id: string) {
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: id },
-    });
+  async remove(uuid: string) {
+    await this.uuidHelper.validateUuidContent(uuid);
 
-    if (!isExists) {
-      throw new NotFoundException(`Ebook with ID ${id} not found`);
-    }
-
-    const content = await this.prisma.contents.delete({
-      where: { uuid: id, type: 'Ebook' },
+    const ebook = await this.prisma.contents.delete({
+      where: { uuid, type: 'Ebook' },
     });
 
     return {
       status: 'success',
-      message: 'Ebook have been removed',
+      message: 'Ebook succesfully deleted',
       data: {
-        id: content.uuid,
+        id: ebook.uuid,
       },
     };
   }

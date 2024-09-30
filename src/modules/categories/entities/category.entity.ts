@@ -1,14 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Categories } from '@prisma/client';
 
-export class Category implements Categories {
-  @ApiProperty({ example: '1', type: Number })
-  id: number;
-
-  @ApiProperty({ example: 'Fiction', type: String })
+export class Category {
+  @ApiProperty({
+    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    type: String,
+  })
   uuid: string;
 
-  @ApiProperty({ example: 'Fiction', type: String })
+  @ApiProperty({ example: 'This is a name', type: String })
   name: string;
 
   @ApiProperty({ example: 'https://example.com/image.jpg', type: String })

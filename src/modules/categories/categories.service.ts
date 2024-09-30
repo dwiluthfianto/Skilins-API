@@ -19,9 +19,9 @@ export class CategoriesService {
 
     return {
       status: 'success',
-      message: 'Category succefully added',
+      message: 'category successfully added!',
       data: {
-        id: category.uuid,
+        uuid: category.uuid,
       },
     };
   }
@@ -31,7 +31,7 @@ export class CategoriesService {
     return {
       status: 'success',
       data: categories.map((category) => ({
-        id: category.uuid,
+        uuid: category.uuid,
         avatar: category.avatar,
         name: category.name,
         description: category.description,
@@ -39,14 +39,14 @@ export class CategoriesService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(uuid: string) {
     const category = await this.prisma.categories.findUnique({
-      where: { uuid: id },
+      where: { uuid },
     });
     return {
       status: 'success',
       data: {
-        id: category.uuid,
+        uuid: category.uuid,
         avatar: category.avatar,
         name: category.name,
         description: category.description,
@@ -54,11 +54,11 @@ export class CategoriesService {
     };
   }
 
-  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+  async update(uuid: string, updateCategoryDto: UpdateCategoryDto) {
     const { name, avatar, description } = updateCategoryDto;
     const category = await this.prisma.categories.update({
       where: {
-        uuid: id,
+        uuid,
       },
       data: {
         name,
@@ -71,21 +71,21 @@ export class CategoriesService {
       status: 'success',
       message: 'Category succefully updated',
       data: {
-        id: category.uuid,
+        uuid: category.uuid,
       },
     };
   }
 
-  async remove(id: string) {
+  async remove(uuid: string) {
     const category = await this.prisma.categories.delete({
-      where: { uuid: id },
+      where: { uuid },
     });
 
     return {
       status: 'success',
-      message: 'Ebook have been removed',
+      message: 'category successfully deleted!',
       data: {
-        id: category.uuid,
+        uuid: category.uuid,
       },
     };
   }
