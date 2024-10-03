@@ -33,7 +33,7 @@ model Users {
 model Roles {
   id    Int     @id @default(autoincrement())
   uuid  String  @unique @default(uuid())
-  name  String
+  name  String  @unique
   users Users[]
 }
 

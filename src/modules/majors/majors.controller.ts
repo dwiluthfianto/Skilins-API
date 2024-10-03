@@ -8,14 +8,20 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { MajorsService } from './majors.service';
 import { CreateMajorDto } from './dto/create-major.dto';
 import { UpdateMajorDto } from './dto/update-major.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Major } from './entities/major.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 @ApiTags('Major')
 @Controller({ path: 'api/majors', version: '1' })
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin')
 export class MajorsController {
   constructor(private readonly majorsService: MajorsService) {}
 

@@ -15,8 +15,11 @@ import { UuidModule } from './common/helpers/uuid.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
-import { RolesModule } from './modules/roles/roles.module';
 import { SupabaseModule } from './supabase/supabase.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { ConfigModule } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
@@ -34,7 +37,11 @@ import { SupabaseModule } from './supabase/supabase.module';
     TagsModule,
     LikesModule,
     CommentsModule,
-    RolesModule,
+    SupabaseModule,
+    AuthModule,
+    UsersModule,
+    ConfigModule.forRoot(),
+    PassportModule,
     SupabaseModule,
   ],
   controllers: [],

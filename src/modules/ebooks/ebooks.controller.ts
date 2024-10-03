@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { EbooksService } from './ebooks.service';
 import { CreateEbookDto } from './dto/create-ebook.dto';
@@ -19,6 +20,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Ebook } from './entities/ebook.entity';
+import { Roles } from '../roles/roles.decorator';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/ebooks', version: '1' })
@@ -26,6 +30,8 @@ export class EbooksController {
   constructor(private readonly ebooksService: EbooksService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: Ebook,
   })
@@ -59,6 +65,8 @@ export class EbooksController {
   }
 
   @Patch(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Ebook,
   })
@@ -68,6 +76,8 @@ export class EbooksController {
   }
 
   @Delete(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Ebook,
   })

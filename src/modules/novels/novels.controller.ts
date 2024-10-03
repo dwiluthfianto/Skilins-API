@@ -8,12 +8,16 @@ import {
   Delete,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import { NovelsService } from './novels.service';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
 import { Novel } from './entities/novel.entity';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { AuthGuard } from '@nestjs/passport';
+import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/novels', version: '1' })
@@ -21,6 +25,8 @@ export class NovelsController {
   constructor(private readonly novelsService: NovelsService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: Novel,
   })
@@ -49,6 +55,8 @@ export class NovelsController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Novel,
   })
@@ -58,6 +66,8 @@ export class NovelsController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Novel,
   })

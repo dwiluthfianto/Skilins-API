@@ -8,12 +8,17 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Student } from './entities/student.entity';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+// import { AuthGuard } from 'src/common/guards/auth.guard';
+import { Roles } from '../roles/roles.decorator';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Student')
 @Controller({ path: 'api/students', version: '1' })
@@ -21,6 +26,8 @@ export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: Student,
   })
@@ -49,6 +56,8 @@ export class StudentsController {
   }
 
   @Patch(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Student,
   })
@@ -65,6 +74,8 @@ export class StudentsController {
     type: Student,
   })
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   remove(@Param('uuid') uuid: string) {
     return this.studentsService.remove(uuid);
   }

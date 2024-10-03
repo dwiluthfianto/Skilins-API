@@ -1,8 +1,20 @@
-import { Controller, Post, Body, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { LikesService } from './likes.service';
 import { UpdateLikeDto } from './dto/update-like.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 
 @Controller('likes')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('user')
 export class LikesController {
   constructor(private readonly likesService: LikesService) {}
 

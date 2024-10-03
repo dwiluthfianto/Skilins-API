@@ -8,12 +8,16 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { BlogsService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Blog } from './entities/blog.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/blogs', version: '1' })
@@ -21,6 +25,8 @@ export class BlogsController {
   constructor(private readonly blogsService: BlogsService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: Blog,
   })
@@ -49,6 +55,8 @@ export class BlogsController {
   }
 
   @Patch(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Blog,
   })
@@ -58,6 +66,8 @@ export class BlogsController {
   }
 
   @Delete(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: Blog,
   })

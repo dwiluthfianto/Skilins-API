@@ -8,12 +8,16 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { PklReportsService } from './pkl-reports.service';
 import { CreatePklReportDto } from './dto/create-pkl-report.dto';
 import { UpdatePklReportDto } from './dto/update-pkl-report.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { PklReport } from './entities/pkl-report.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/reports', version: '1' })
@@ -21,6 +25,8 @@ export class PklReportsController {
   constructor(private readonly pklReportsService: PklReportsService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: PklReport,
   })
@@ -49,6 +55,8 @@ export class PklReportsController {
   }
 
   @Patch(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: PklReport,
   })
@@ -61,6 +69,8 @@ export class PklReportsController {
   }
 
   @Delete(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: PklReport,
   })

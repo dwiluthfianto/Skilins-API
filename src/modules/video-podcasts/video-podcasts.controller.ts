@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { VideoPodcastsService } from './video-podcasts.service';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
@@ -19,6 +20,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { VideoPodcast } from './entities/video-podcast.entity';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/videos', version: '1' })
@@ -26,6 +30,8 @@ export class VideoPodcastsController {
   constructor(private readonly videoPodcastsService: VideoPodcastsService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiCreatedResponse({
     type: VideoPodcast,
   })
@@ -54,6 +60,8 @@ export class VideoPodcastsController {
   }
 
   @Patch(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiOkResponse({
     type: VideoPodcast,
   })
@@ -66,6 +74,8 @@ export class VideoPodcastsController {
   }
 
   @Delete(':uuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully deleted.',
