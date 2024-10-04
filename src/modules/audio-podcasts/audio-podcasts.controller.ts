@@ -9,86 +9,106 @@ import {
   HttpCode,
   HttpStatus,
   UseInterceptors,
-  UploadedFile,
   UseGuards,
+  UploadedFiles,
 } from '@nestjs/common';
 import { AudioPodcastsService } from './audio-podcasts.service';
 import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
 import { UpdateAudioPodcastDto } from './dto/update-audio-podcast.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AudioPodcast } from './entities/audio-podcast.entity';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { MulterError } from 'multer';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
+import { SupabaseService } from 'src/supabase';
+import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/contents/audios', version: '1' })
 export class AudioPodcastsController {
-  constructor(private readonly audioPodcastsService: AudioPodcastsService) {}
+  constructor(
+    private readonly audioPodcastsService: AudioPodcastsService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
-  // @Post()
-  // @ApiCreatedResponse({
-  //   type: AudioPodcast,
-  // })
-  // @HttpCode(HttpStatus.CREATED)
-  // async create(
-  //   @UploadedFile('thumbnail') thumbnail: Express.Multer.File,
-  //   @UploadedFile('file_url') fileUrl: Express.Multer.File,
-  //   @Body() createAudioPodcastDto: CreateAudioPodcastDto,
-  // ) {
-  //   // Handle potential upload errors (e.g., size limit exceeded, invalid format)
-  //   if (thumbnail && thumbnail instanceof MulterError) {
-  //     throw new Error(thumbnail.message);
-  //   }
+  @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
+  @ApiCreatedResponse({
+    type: AudioPodcast,
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
+  )
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @UploadedFiles()
+    files: {
+      thumbnail?: Express.Multer.File[];
+      file_url?: Express.Multer.File[];
+    },
+    @Body() createAudioPodcastDto: CreateAudioPodcastDto,
+  ) {
+    let thumbFilename: string;
+    let fileFilename: string;
+    try {
+      const {
+        success: thumbnailSuccess,
+        url: thumbnailUrl,
+        fileName: thumbnailFilename,
+        error: thumbnailError,
+      } = await this.supabaseService.uploadFile(
+        files.thumbnail[0],
+        `skilins_storage/${ContentFileEnum.thumbnail}`,
+      );
 
-  //   // Handle file_url upload errors (if using local storage)
+      if (!thumbnailSuccess) {
+        throw new Error(`Failed to upload thumbnail: ${thumbnailError}`);
+      }
 
-  //   let thumbnailUrl;
-  //   let fileUrlPath; // Optional (if using local storage)
+      const {
+        success: fileSuccess,
+        url: fileUrl,
+        fileName: fileUrlFilename,
+        error: fileError,
+      } = await this.supabaseService.uploadFile(
+        files.file_url[0],
+        `skilins_storage/${ContentFileEnum.file_audio}`,
+      );
 
-  //   try {
-  //     if (thumbnail) {
-  //       const { data: thumbnailData, error: thumbnailError } =
-  //         await this.supabaseService.supabaseClient.storage
-  //           .from('thumbnails')
-  //           .upload(thumbnail.originalname, thumbnail.buffer, {
-  //             contentType: thumbnail.mimetype,
-  //           });
+      if (!fileSuccess) {
+        throw new Error(`Failed to upload file: ${fileError}`);
+      }
 
-  //       if (thumbnailError) {
-  //         throw new Error(thumbnailError.message);
-  //       }
+      fileFilename = fileUrlFilename;
+      thumbFilename = thumbnailFilename;
 
-  //       thumbnailUrl = thumbnailData.fullPath;
-  //     }
+      createAudioPodcastDto.thumbnail = thumbnailUrl;
+      createAudioPodcastDto.file_url = fileUrl;
 
-  //     // Handle file_url upload (if using local storage)
-  //     if (fileUrl) {
-  //       const { data: fileUrlData, error: fileUrlError } =
-  //         await this.supabaseService.supabaseClient.storage
-  //           .from('files')
-  //           .upload(thumbnail.originalname, thumbnail.buffer, {
-  //             contentType: thumbnail.mimetype,
-  //           });
+      const result = await this.audioPodcastsService.create(
+        createAudioPodcastDto,
+      );
+      return result;
+    } catch (e) {
+      console.error('Error during audio podcast creation:', e.message);
 
-  //       if (fileUrlError) {
-  //         throw new Error(fileUrlError.message);
-  //       }
+      const { success, error } = await this.supabaseService.deleteFile([
+        `${ContentFileEnum.file_audio}${fileFilename}`,
+        `${ContentFileEnum.thumbnail}${thumbFilename}`,
+      ]);
 
-  //       fileUrlPath = fileUrlData.fullPath;
-  //     }
-  //     // Update createAudioPodcastDto with thumbnailUrl and fileUrlPath
-  //     createAudioPodcastDto.thumbnail = thumbnailUrl;
-  //     createAudioPodcastDto.file_url = fileUrlPath; // Optional (if using local storage)
-  //     return this.audioPodcastsService.create(createAudioPodcastDto);
-  //   } catch (error) {
-  //     // Handle errors gracefully
-  //     console.error(error);
-  //     throw new Error('Error uploading audio podcast');
-  //   }
-  // }
+      if (!success) {
+        console.error('Failed to delete files:', error);
+      }
+
+      return {
+        message:
+          'Failed to create audio podcast and cleaned up uploaded files.',
+      };
+    }
+  }
 
   @Get()
   @ApiOkResponse({
@@ -110,17 +130,61 @@ export class AudioPodcastsController {
   }
 
   @Patch(':uuid')
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
+  )
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
   @ApiOkResponse({
     type: AudioPodcast,
   })
   @HttpCode(HttpStatus.OK)
-  update(
+  async update(
     @Param('uuid') uuid: string,
+    @UploadedFiles()
+    files: {
+      thumbnail?: Express.Multer.File[];
+      file_url?: Express.Multer.File[];
+    },
     @Body() updateAudioPodcastDto: UpdateAudioPodcastDto,
   ) {
-    return this.audioPodcastsService.update(uuid, updateAudioPodcastDto);
+    try {
+      const isExist = await this.audioPodcastsService.findOne(uuid);
+
+      const thumbFilename = isExist.data.thumbnail.split('/').pop();
+      const fileFilename = isExist.data.file_url.split('/').pop();
+
+      const { success: thumbnailSuccess, error: thumbnailError } =
+        await this.supabaseService.updateFile(
+          `${ContentFileEnum.thumbnail}${thumbFilename}`,
+          files.thumbnail[0],
+        );
+
+      if (!thumbnailSuccess) {
+        throw new Error(`Failed to update thumbnail: ${thumbnailError}`);
+      }
+
+      const { success: fileSuccess, error: fileError } =
+        await this.supabaseService.updateFile(
+          `${ContentFileEnum.file_audio}${fileFilename}`,
+          files.file_url[0],
+        );
+
+      if (!fileSuccess) {
+        throw new Error(`Failed to update file: ${fileError}`);
+      }
+
+      return await this.audioPodcastsService.update(
+        uuid,
+        updateAudioPodcastDto,
+      );
+    } catch (e) {
+      console.error('Error during audio podcast creation:', e.message);
+
+      return {
+        message: 'Failed to update audio podcast.',
+      };
+    }
   }
 
   @Delete(':uuid')

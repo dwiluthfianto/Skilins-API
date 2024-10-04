@@ -1,6 +1,6 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateAudioPodcastDto } from './create-audio-podcast.dto';
-import { IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
   @ApiPropertyOptional({
@@ -8,6 +8,7 @@ export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
     type: Number,
   })
   @IsOptional()
+  @IsNumber()
   duration?: number;
 
   @ApiPropertyOptional({
@@ -15,6 +16,7 @@ export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
     type: String,
   })
   @IsOptional()
+  @IsString()
   file_url?: string;
 
   @ApiPropertyOptional({
@@ -22,5 +24,6 @@ export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
     type: String,
   })
   @IsOptional()
+  @IsString()
   creator_uuid?: string;
 }

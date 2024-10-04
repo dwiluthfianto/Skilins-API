@@ -9,10 +9,11 @@ export class CategoriesService {
 
   async create(createCategoryDto: CreateCategoryDto) {
     const { name, avatar_url, description } = createCategoryDto;
+
     const category = await this.prisma.categories.create({
       data: {
         name,
-        avatar_url: avatar_url,
+        avatar_url,
         description,
       },
     });

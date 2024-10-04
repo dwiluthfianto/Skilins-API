@@ -3,7 +3,7 @@ import { Request } from 'express';
 import { REQUEST } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { ExtractJwt } from 'passport-jwt';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable({ scope: Scope.REQUEST })
 export class SupabaseService {
@@ -43,75 +43,78 @@ export class SupabaseService {
     return this.clientInstance;
   }
 
-  // Use JWT from the Authorization header in each request
-  async authenticateWithJwt() {
-    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(this.request);
-    if (!token) {
-      this.logger.warn('No auth token found in request headers.');
-      throw new Error('Unauthorized: No token provided');
-    }
+  // Method to upload a file to Supabase Storage
+  async uploadFile(
+    file: Express.Multer.File,
+    bucket: string,
+  ): Promise<{
+    success: boolean;
+    url?: string;
+    fileName?: string;
+    error?: any;
+  }> {
+    const client = this.getClient();
+    const uniqueFileName = `${uuidv4()}-${file.originalname}`;
 
-    const { data, error } = await this.getClient().auth.getUser(token);
+    const { error } = await client.storage
+      .from(bucket)
+      .upload(uniqueFileName, file.buffer, {
+        contentType: file.mimetype,
+      });
+
     if (error) {
-      this.logger.error('Error authenticating user with token', error.message);
-      throw new Error('Authentication failed');
+      this.logger.error(`Error uploading file: ${error.message}`);
+      return { success: false, error: error.message };
     }
 
-    this.logger.log('User authenticated successfully');
-    return data.user;
-  }
+    const { data } = client.storage.from(bucket).getPublicUrl(uniqueFileName);
 
-  // Register a new user
-  async signUp(email: string, password: string) {
-    const { data, error } = await this.getClient().auth.signUp({
-      email,
-      password,
+    this.logger.log(`File uploaded successfully. URL: ${data.publicUrl}`);
+    return { success: true, url: data.publicUrl, fileName: uniqueFileName };
+  }
+  async deleteFile(
+    files: string[],
+  ): Promise<{ success: boolean; error?: any }> {
+    const client = this.getClient();
+
+    const { data, error } = await client.storage
+      .from(this.configService.get<string>('SUPABASE_BUCKET'))
+      .remove(files);
+
+    if (error) {
+      this.logger.error(`Error uploading file: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+
+    data.map((d) => {
+      this.logger.log(`File remove successfully. Name: ${d.name}`);
     });
-
-    if (error) {
-      this.logger.error('Error signing up user', error.message);
-      throw new Error(error.message);
-    }
-
-    this.logger.log('User signed up successfully');
-    return data.user;
+    return { success: true };
   }
 
-  // Trigger password reset
-  async resetPassword(email: string) {
-    const { error } = await this.getClient().auth.resetPasswordForEmail(email);
+  async updateFile(
+    filePath: string,
+    file: Express.Multer.File,
+  ): Promise<{
+    success?: boolean;
+    error?: any;
+  }> {
+    const client = this.getClient();
+
+    const { data, error } = await client.storage
+      .from(this.configService.get<string>('SUPABASE_BUCKET'))
+      .update(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
+
     if (error) {
-      this.logger.error('Error sending password reset email', error.message);
-      throw new Error(error.message);
+      this.logger.error(`Error update file: ${error.message}`);
+      return { success: false, error: error.message };
     }
 
-    this.logger.log('Password reset email sent');
-    return { message: 'Password reset email sent' };
-  }
+    this.logger.log(`File updated successfully. path: ${data.path}`);
 
-  // Update password with token
-  async updatePassword(newPassword: string) {
-    const { error } = await this.getClient().auth.updateUser({
-      password: newPassword,
-    });
-    if (error) {
-      this.logger.error('Error updating password', error.message);
-      throw new Error(error.message);
-    }
-
-    this.logger.log('Password updated successfully');
-    return { message: 'Password updated successfully' };
-  }
-
-  // Verify JWT token from Supabase
-  async verifyJwt(token: string) {
-    const { data, error } = await this.getClient().auth.getUser(token);
-    if (error) {
-      this.logger.error('Error verifying JWT token', error.message);
-      throw new Error(error.message);
-    }
-
-    this.logger.log('JWT token verified successfully');
-    return data.user;
+    return { success: true };
   }
 }

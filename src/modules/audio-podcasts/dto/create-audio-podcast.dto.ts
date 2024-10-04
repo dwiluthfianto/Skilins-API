@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreateAudioPodcastDto extends ContentDto {
@@ -8,6 +8,7 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: Number,
   })
   @IsNotEmpty()
+  @IsNumber()
   duration: number;
 
   @ApiProperty({
@@ -15,6 +16,7 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: String,
   })
   @IsNotEmpty()
+  @IsString()
   file_url: string;
 
   @ApiProperty({
@@ -22,5 +24,6 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: String,
   })
   @IsNotEmpty()
+  @IsString()
   creator_uuid: string;
 }

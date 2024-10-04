@@ -10,18 +10,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 @Module({
   imports: [
     UsersModule,
-    // Import ConfigModule to use ConfigService
     ConfigModule.forRoot({
-      isGlobal: true, // Ensure ConfigModule is available globally
+      isGlobal: true,
     }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule], // Ensure ConfigModule is imported here too
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'), // Fetch JWT secret from config
-        signOptions: { expiresIn: '60m' },
-      }),
-    }),
+    JwtModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, SupabaseService, PrismaService],

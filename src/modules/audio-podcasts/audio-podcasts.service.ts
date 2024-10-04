@@ -35,16 +35,16 @@ export class AudioPodcastsService {
         AudioPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
-            duration,
+            duration: duration || 0,
             file_url,
           },
         },
         tags: {
-          connectOrCreate: tags.map((tag) => ({
+          connectOrCreate: tags?.map((tag) => ({
             where: { name: tag.name },
             create: {
               name: tag.name,
-              avatar_url: tag.avatar_url || 'default-avatar.jpg',
+              avatar_url: tag.avatar_url || 'null',
               description: tag.description || 'No description available.',
             },
           })),
@@ -78,7 +78,7 @@ export class AudioPodcastsService {
 
     return {
       status: 'success',
-      data: audios.map((audio) => ({
+      data: audios?.map((audio) => ({
         uuid: audio.uuid,
         thumbnail: audio.thumbnail,
         title: audio.title,
@@ -90,18 +90,18 @@ export class AudioPodcastsService {
         creator: audio.AudioPodcasts[0].creator.name,
         duration: audio.AudioPodcasts[0].duration,
         file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags.map((tag) => ({
+        tags: audio.tags?.map((tag) => ({
           uuid: tag.uuid,
           name: tag.name,
         })),
-        comments: audio.comments.map((comment) => ({
+        comments: audio.comments?.map((comment) => ({
           uuid: comment.uuid,
           content: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        likes: audio.likes.map((like) => ({
+        likes: audio.likes?.map((like) => ({
           uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
@@ -142,18 +142,18 @@ export class AudioPodcastsService {
         creator: audio.AudioPodcasts[0].creator.name,
         duration: audio.AudioPodcasts[0].duration,
         file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags.map((tag) => ({
+        tags: audio.tags?.map((tag) => ({
           uuid: tag.uuid,
           name: tag.name,
         })),
-        comments: audio.comments.map((comment) => ({
+        comments: audio.comments?.map((comment) => ({
           uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        likes: audio.likes.map((like) => ({
+        likes: audio.likes?.map((like) => ({
           uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
@@ -192,13 +192,13 @@ export class AudioPodcastsService {
             where: { content_id: content.id },
             data: {
               creator_id: creator.id,
-              duration,
+              duration: duration || 0,
               file_url,
             },
           },
         },
         tags: {
-          connectOrCreate: tags.map((tag) => ({
+          connectOrCreate: tags?.map((tag) => ({
             where: { name: tag.name },
             create: {
               name: tag.name,
