@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class NovelsService {
@@ -101,7 +101,7 @@ export class NovelsService {
   }
 
   async findOne(uuid: string) {
-    const content = await this.prisma.contents.findUnique({
+    const content = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid, type: 'Novel' },
       include: {
         category: true,
@@ -115,10 +115,6 @@ export class NovelsService {
         },
       },
     });
-
-    if (!content) {
-      throw new NotFoundException(`Eovel with ID ${uuid} does not exist.`);
-    }
 
     return {
       status: 'success',

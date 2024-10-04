@@ -7,7 +7,6 @@ export class CreateTagDto {
     type: String,
   })
   @IsOptional()
-  @IsString()
   avatar_url?: string;
 
   @ApiProperty({ example: 'this is a name', type: String })

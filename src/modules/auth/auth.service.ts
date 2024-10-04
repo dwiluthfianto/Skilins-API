@@ -1,16 +1,11 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SupabaseService } from 'src/supabase';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
@@ -20,12 +15,14 @@ export class AuthService {
     private readonly supabaseService: SupabaseService,
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly userService: UsersService,
   ) {}
 
   // User login
-  async login(authEmailLoginDto: AuthEmailLoginDto) {
-    const user = await this.prisma.users.findUnique({
+  async login(
+    authEmailLoginDto: AuthEmailLoginDto,
+  ): Promise<{ accessToken?: string; refreshToken?: string; data?: any }> {
+    const user = await this.prisma.users.findUniqueOrThrow({
       where: { email: authEmailLoginDto.email },
       include: { roles: true },
     });
@@ -42,12 +39,13 @@ export class AuthService {
       sub: user.uuid,
       role: user.roles.name,
     };
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_SECRET'),
-    });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
+    await this.userService.updateRefreshToken(user.uuid, refreshToken);
     return {
       accessToken,
+      refreshToken,
       data: {
         uuid: user.uuid,
         username: user.username,
@@ -60,15 +58,9 @@ export class AuthService {
   async register(authRegisterLoginDto: AuthRegisterLoginDto) {
     const hashedPassword = await bcrypt.hash(authRegisterLoginDto.password, 10);
 
-    const role = await this.prisma.roles.findUnique({
+    const role = await this.prisma.roles.findUniqueOrThrow({
       where: { name: authRegisterLoginDto.role },
     });
-
-    if (!role) {
-      throw new NotFoundException(
-        `Role with name ${authRegisterLoginDto.role} does not exist`,
-      );
-    }
 
     const user = await this.prisma.users.create({
       data: {
@@ -89,16 +81,58 @@ export class AuthService {
     };
   }
 
-  async validateUser(userId: string) {
-    const user = await this.prisma.users.findUnique({
-      where: { uuid: userId },
+  async validateUser(uuid: string) {
+    const user = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid },
       include: { roles: true },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('User not found');
+    return user;
+  }
+
+  async refreshTokens(refreshToken: string) {
+    const decoded = this.jwtService.decode(refreshToken) as any;
+
+    // Check if we can extract the UUID from the token payload
+    if (!decoded || !decoded.sub) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    return user;
+    // Find user by UUID (sub in JWT payload)
+    const user = await this.userService.findOne(decoded.sub);
+
+    if (!user || !(await this.validateRefreshToken(user.uuid, refreshToken))) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const payload = {
+      email: user.email,
+      sub: user.uuid,
+      role: user.roles.name,
+    };
+    // Generate new access and refresh tokens
+    const accessToken = this.jwtService.sign(payload);
+    const newRefreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    // Update refresh token in database
+    await this.userService.updateRefreshToken(user.uuid, newRefreshToken);
+
+    return { accessToken, newRefreshToken };
+  }
+
+  async validateRefreshToken(
+    uuid: string,
+    refreshToken: string,
+  ): Promise<boolean> {
+    const user = await this.prisma.users.findUnique({ where: { uuid } });
+
+    if (!user || !user.refreshToken) return false;
+
+    // Compare the stored (hashed) token with the one provided by the user
+    return bcrypt.compare(refreshToken, user.refreshToken);
+  }
+
+  async logout(uuid: string): Promise<void> {
+    await this.userService.clearRefreshToken(uuid);
   }
 }

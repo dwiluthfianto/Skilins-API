@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateEbookDto } from './dto/create-ebook.dto';
 import { UpdateEbookDto } from './dto/update-ebook.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -106,7 +106,7 @@ export class EbooksService {
   }
 
   async findOne(uuid: string) {
-    const content = await this.prisma.contents.findUnique({
+    const content = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid },
       include: {
         category: true,
@@ -116,10 +116,6 @@ export class EbooksService {
         Ebooks: true,
       },
     });
-
-    if (!content) {
-      throw new NotFoundException(`Ebook with ${uuid} does not exist.`);
-    }
 
     return {
       status: 'success',
@@ -135,7 +131,7 @@ export class EbooksService {
         author: content.Ebooks[0].author,
         pages: content.Ebooks[0].pages,
         publication: content.Ebooks[0].publication,
-        file: content.Ebooks[0].file_url,
+        file_url: content.Ebooks[0].file_url,
         isbn: content.Ebooks[0].isbn,
         release_date: content.Ebooks[0].release_date,
         tags: content.tags.map((tag) => ({

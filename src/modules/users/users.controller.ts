@@ -13,7 +13,7 @@ export class UsersController {
   @Get(':uuid')
   @Roles('admin', 'user', 'superadmin')
   async getUserByUuid(@Param('uuid') uuid: string) {
-    return this.usersService.getUserByUuid(uuid);
+    return this.usersService.findOne(uuid);
   }
 
   @Post('assign-role')
@@ -25,6 +25,6 @@ export class UsersController {
   @Get()
   @Roles('superadmin')
   async getAllUsers() {
-    return this.usersService.getAllUsers();
+    return this.usersService.findAll();
   }
 }

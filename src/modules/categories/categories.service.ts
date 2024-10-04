@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly uuidHelper: UuidHelper,
+  ) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
     const { name, avatar_url, description } = createCategoryDto;
@@ -41,7 +45,7 @@ export class CategoriesService {
   }
 
   async findOne(uuid: string) {
-    const category = await this.prisma.categories.findUnique({
+    const category = await this.prisma.categories.findUniqueOrThrow({
       where: { uuid },
     });
     return {
@@ -57,6 +61,7 @@ export class CategoriesService {
 
   async update(uuid: string, updateCategoryDto: UpdateCategoryDto) {
     const { name, avatar_url, description } = updateCategoryDto;
+    await this.uuidHelper.validateUuidCategory(uuid);
     const category = await this.prisma.categories.update({
       where: {
         uuid,
@@ -78,6 +83,7 @@ export class CategoriesService {
   }
 
   async remove(uuid: string) {
+    await this.uuidHelper.validateUuidContent(uuid);
     const category = await this.prisma.categories.delete({
       where: { uuid },
     });

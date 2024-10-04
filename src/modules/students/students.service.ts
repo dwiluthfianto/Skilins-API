@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -58,14 +58,11 @@ export class StudentsService {
   }
 
   async findOne(uuid: string) {
-    const student = await this.prisma.students.findUnique({
+    const student = await this.prisma.students.findUniqueOrThrow({
       where: { uuid },
       include: { major: true },
     });
 
-    if (!student) {
-      throw new NotFoundException(`Student with Id ${uuid} does not exist`);
-    }
     return {
       status: 'success',
       data: {
@@ -93,6 +90,10 @@ export class StudentsService {
       age,
       status,
     } = updateStudentDto;
+
+    await this.prisma.majors.findUniqueOrThrow({ where: { uuid: major_uuid } });
+    await this.prisma.students.findUniqueOrThrow({ where: { uuid } });
+
     const student = await this.prisma.students.update({
       where: { uuid },
       data: {
@@ -115,13 +116,9 @@ export class StudentsService {
   }
 
   async remove(uuid: string) {
-    const isExist = await this.prisma.students.findUnique({
+    await this.prisma.students.findUniqueOrThrow({
       where: { uuid },
     });
-
-    if (!isExist) {
-      throw new NotFoundException(`Student with Id ${uuid} does not exist`);
-    }
     await this.prisma.students.delete({
       where: { uuid },
     });

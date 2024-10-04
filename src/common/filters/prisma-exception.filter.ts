@@ -73,16 +73,15 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       typeof exception.meta.cause === 'string'
     ) {
       return exception.meta.cause;
-    }
-    // else if (exception instanceof Prisma.PrismaClientValidationError) {
-    //   const errorLines = exception.message.split('\n');
-    //   const relevantDetails = errorLines
-    //     .filter((line) => line.includes('Argument') || line.includes('Invalid'))
-    //     .map((line) => line.trim())
-    //     .join(' | ');
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      const errorLines = exception.message.split('\n');
+      const relevantDetails = errorLines
+        .filter((line) => line.includes('Argument') || line.includes('Invalid'))
+        .map((line) => line.trim())
+        .join(' | ');
 
-    //   return `Validation failed: ${relevantDetails || 'No specific details available.'}`;
-    // }
+      return `Validation failed: ${relevantDetails || 'No specific details available.'}`;
+    }
     return exception.message;
   }
 }

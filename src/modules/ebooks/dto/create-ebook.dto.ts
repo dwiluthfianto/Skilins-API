@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsDate, IsInt, IsNotEmpty, IsOptional } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreateEbookDto extends ContentDto {
@@ -8,7 +9,9 @@ export class CreateEbookDto extends ContentDto {
   author: string;
 
   @ApiPropertyOptional({ example: 0, type: Number })
-  @IsOptional()
+  @IsNotEmpty()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
   pages: number;
 
   @ApiPropertyOptional({ example: 'This is a Publication', type: String })
@@ -16,7 +19,6 @@ export class CreateEbookDto extends ContentDto {
   publication?: string;
 
   @ApiProperty({ example: 'https://example.com/test.pdf', type: String })
-  @IsNotEmpty()
   file_url: string;
 
   @ApiPropertyOptional({ example: 'This is an ISBN', type: String })
@@ -24,6 +26,8 @@ export class CreateEbookDto extends ContentDto {
   isbn?: string;
 
   @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
+  @Transform(({ value }) => new Date(value))
   @IsNotEmpty()
+  @IsDate()
   release_date: Date;
 }

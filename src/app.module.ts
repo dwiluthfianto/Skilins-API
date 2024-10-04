@@ -11,7 +11,6 @@ import { BlogsModule } from './modules/blogs/blogs.module';
 import { PklReportsModule } from './modules/pkl-reports/pkl-reports.module';
 import { StudentsModule } from './modules/students/students.module';
 import { MajorsModule } from './modules/majors/majors.module';
-import { UuidModule } from './common/helpers/uuid.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
@@ -33,7 +32,6 @@ import { PassportModule } from '@nestjs/passport';
     PklReportsModule,
     StudentsModule,
     MajorsModule,
-    UuidModule,
     TagsModule,
     LikesModule,
     CommentsModule,

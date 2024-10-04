@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
 import { UpdateVideoPodcastDto } from './dto/update-video-podcast.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Injectable()
 export class VideoPodcastsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly uuidHelper: UuidHelper,
+  ) {}
   async create(createVideoPodcastDto: CreateVideoPodcastDto) {
     const {
       title,
@@ -39,7 +43,7 @@ export class VideoPodcastsService {
       status: 'success',
       message: 'video successfully uploaded!',
       data: {
-        id: video.uuid,
+        uuid: video.uuid,
       },
     };
   }
@@ -63,7 +67,7 @@ export class VideoPodcastsService {
     return {
       status: 'success',
       data: videos.map((video) => ({
-        id: video.uuid,
+        uuid: video.uuid,
         thumbnail: video.thumbnail,
         title: video.title,
         description: video.description,
@@ -75,18 +79,18 @@ export class VideoPodcastsService {
         duration: video.VideoPodcasts[0].duration,
         file_url: video.VideoPodcasts[0].file_url,
         tags: video.tags.map((tag) => ({
-          id: tag.uuid,
+          uuid: tag.uuid,
           name: tag.name,
         })),
         comments: video.comments.map((comment) => ({
-          id: comment.uuid,
+          uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
         likes: video.likes.map((like) => ({
-          id: like.uuid,
+          uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
         })),
@@ -95,7 +99,7 @@ export class VideoPodcastsService {
   }
 
   async findOne(uuid: string) {
-    const video = await this.prisma.contents.findUnique({
+    const video = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid },
       include: {
         category: true,
@@ -109,13 +113,10 @@ export class VideoPodcastsService {
         },
       },
     });
-    if (!video) {
-      throw new NotFoundException(`Video with Id ${uuid} does not exist`);
-    }
     return {
       status: 'success',
       data: {
-        id: video.uuid,
+        uuid: video.uuid,
         thumbnail: video.thumbnail,
         title: video.title,
         description: video.description,
@@ -127,18 +128,18 @@ export class VideoPodcastsService {
         duration: video.VideoPodcasts[0].duration,
         file_url: video.VideoPodcasts[0].file_url,
         tags: video.tags.map((tag) => ({
-          id: tag.uuid,
+          uuid: tag.uuid,
           name: tag.name,
         })),
         comments: video.comments.map((comment) => ({
-          id: comment.uuid,
+          uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
         likes: video.likes.map((like) => ({
-          id: like.uuid,
+          uuid: like.uuid,
           created_at: like.created_at,
           liked_by: like.liked_by,
         })),
@@ -158,36 +159,21 @@ export class VideoPodcastsService {
       creator_uuid,
     } = updateVideoPodcastDto;
 
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid: uuid },
-    });
-
-    if (!isExists) {
-      throw new NotFoundException(`Video with Id ${uuid} does not exist`);
-    }
-
-    const creator = await this.prisma.students.findUnique({
-      where: { uuid: creator_uuid },
-      select: { id: true },
-    });
-
-    if (!creator) {
-      throw new NotFoundException(
-        `Creator with ID ${creator_uuid} does not exist`,
-      );
-    }
+    const content = await this.uuidHelper.validateUuidContent(uuid);
+    const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
 
     const video = await this.prisma.contents.update({
-      where: { uuid: uuid, type: 'VideoPodcast' },
+      where: { uuid, type: 'VideoPodcast' },
       data: {
         title,
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { id: category.id } },
         VideoPodcasts: {
           update: {
-            where: { content_id: isExists.id },
+            where: { content_id: content.id },
             data: {
               creator_id: creator.id,
               duration,
@@ -201,28 +187,22 @@ export class VideoPodcastsService {
       status: 'success',
       message: 'video successfully updated!',
       data: {
-        id: video.uuid,
+        uuid: video.uuid,
       },
     };
   }
 
   async remove(uuid: string) {
-    const isExists = await this.prisma.contents.findUnique({
-      where: { uuid },
-    });
-
-    if (!isExists) {
-      throw new NotFoundException(`Video with UUID ${uuid} does not exist`);
-    }
+    await this.uuidHelper.validateUuidContent(uuid);
 
     const video = await this.prisma.contents.delete({
-      where: { uuid: uuid },
+      where: { uuid },
     });
     return {
       status: 'success',
       message: 'video successfully deleted!',
       data: {
-        id: video.uuid,
+        uuid: video.uuid,
       },
     };
   }

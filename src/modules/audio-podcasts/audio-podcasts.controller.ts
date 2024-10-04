@@ -53,39 +53,43 @@ export class AudioPodcastsController {
     let thumbFilename: string;
     let fileFilename: string;
     try {
-      const {
-        success: thumbnailSuccess,
-        url: thumbnailUrl,
-        fileName: thumbnailFilename,
-        error: thumbnailError,
-      } = await this.supabaseService.uploadFile(
-        files.thumbnail[0],
-        `skilins_storage/${ContentFileEnum.thumbnail}`,
-      );
+      if (files.thumbnail && files.thumbnail.length > 0) {
+        const {
+          success: thumbnailSuccess,
+          url: thumbnailUrl,
+          fileName: thumbnailFilename,
+          error: thumbnailError,
+        } = await this.supabaseService.uploadFile(
+          files.thumbnail[0],
+          `skilins_storage/${ContentFileEnum.thumbnail}`,
+        );
 
-      if (!thumbnailSuccess) {
-        throw new Error(`Failed to upload thumbnail: ${thumbnailError}`);
+        if (!thumbnailSuccess) {
+          throw new Error(`Failed to upload thumbnail: ${thumbnailError}`);
+        }
+
+        thumbFilename = thumbnailFilename;
+
+        createAudioPodcastDto.thumbnail = thumbnailUrl;
       }
 
-      const {
-        success: fileSuccess,
-        url: fileUrl,
-        fileName: fileUrlFilename,
-        error: fileError,
-      } = await this.supabaseService.uploadFile(
-        files.file_url[0],
-        `skilins_storage/${ContentFileEnum.file_audio}`,
-      );
+      if (files.file_url && files.file_url.length > 0) {
+        const {
+          success: fileSuccess,
+          url: fileUrl,
+          fileName: fileUrlFilename,
+          error: fileError,
+        } = await this.supabaseService.uploadFile(
+          files.file_url[0],
+          `skilins_storage/${ContentFileEnum.file_audio}`,
+        );
 
-      if (!fileSuccess) {
-        throw new Error(`Failed to upload file: ${fileError}`);
+        if (!fileSuccess) {
+          throw new Error(`Failed to upload file: ${fileError}`);
+        }
+        fileFilename = fileUrlFilename;
+        createAudioPodcastDto.file_url = fileUrl;
       }
-
-      fileFilename = fileUrlFilename;
-      thumbFilename = thumbnailFilename;
-
-      createAudioPodcastDto.thumbnail = thumbnailUrl;
-      createAudioPodcastDto.file_url = fileUrl;
 
       const result = await this.audioPodcastsService.create(
         createAudioPodcastDto,
@@ -156,29 +160,35 @@ export class AudioPodcastsController {
     if (audio.status === 'success') {
       const isExist = await this.audioPodcastsService.findOne(uuid);
 
-      const thumbFilename = isExist.data.thumbnail.split('/').pop();
-      const fileFilename = isExist.data.file_url.split('/').pop();
+      if (files.thumbnail && files.thumbnail.length > 0) {
+        const thumbFilename = isExist.data.thumbnail.split('/').pop();
 
-      const { success: thumbnailSuccess, error: thumbnailError } =
-        await this.supabaseService.updateFile(
-          `${ContentFileEnum.thumbnail}${thumbFilename}`,
-          files.thumbnail[0],
-        );
+        const { success: thumbnailSuccess, error: thumbnailError } =
+          await this.supabaseService.updateFile(
+            `${ContentFileEnum.thumbnail}${thumbFilename}`,
+            files.thumbnail[0],
+          );
 
-      if (!thumbnailSuccess) {
-        throw new Error(`Failed to update thumbnail: ${thumbnailError}`);
+        if (!thumbnailSuccess) {
+          throw new Error(`Failed to update thumbnail: ${thumbnailError}`);
+        }
       }
 
-      const { success: fileSuccess, error: fileError } =
-        await this.supabaseService.updateFile(
-          `${ContentFileEnum.file_audio}${fileFilename}`,
-          files.file_url[0],
-        );
+      if (files.file_url && files.file_url.length > 0) {
+        const fileFilename = isExist.data.file_url.split('/').pop();
+        const { success: fileSuccess, error: fileError } =
+          await this.supabaseService.updateFile(
+            `${ContentFileEnum.file_audio}${fileFilename}`,
+            files.file_url[0],
+          );
 
-      if (!fileSuccess) {
-        throw new Error(`Failed to update file: ${fileError}`);
+        if (!fileSuccess) {
+          throw new Error(`Failed to update file: ${fileError}`);
+        }
       }
     }
+
+    return audio;
   }
 
   @Delete(':uuid')
@@ -188,7 +198,30 @@ export class AudioPodcastsController {
     type: AudioPodcast,
   })
   @HttpCode(HttpStatus.OK)
-  remove(@Param('uuid') uuid: string) {
-    return this.audioPodcastsService.remove(uuid);
+  async remove(@Param('uuid') uuid: string) {
+    const isExist = await this.audioPodcastsService.findOne(uuid);
+    const thumbFilename = isExist.data.thumbnail.split('/').pop();
+    const fileFilename = isExist.data.file_url.split('/').pop();
+    if (isExist) {
+      const audio = await this.audioPodcastsService.remove(uuid);
+      if (audio.status === 'success') {
+        const { success: successThumb, error: errorThumb } =
+          await this.supabaseService.deleteFile([
+            `${ContentFileEnum.thumbnail}${thumbFilename}`,
+          ]);
+
+        if (!successThumb) {
+          console.error('Failed to delete thumbnail:', errorThumb);
+        }
+        const { success, error } = await this.supabaseService.deleteFile([
+          `${ContentFileEnum.file_audio}${fileFilename}`,
+        ]);
+
+        if (!success) {
+          console.error('Failed to delete file:', error);
+        }
+      }
+      return audio;
+    }
   }
 }

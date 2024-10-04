@@ -8,7 +8,6 @@ export class UpdateTagDto extends PartialType(CreateTagDto) {
     type: String,
   })
   @IsOptional()
-  @IsString()
   avatar_url?: string;
 
   @ApiPropertyOptional({ example: 'this is a name', type: String })

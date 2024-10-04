@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-// import { ContentType } from '@prisma/client';
 import { IsNotEmpty, IsOptional, MinLength } from 'class-validator';
 import { UpdateTagDto } from 'src/modules/tags/dto/update-tag.dto';
 
@@ -10,7 +9,6 @@ export class ContentDto {
   title: string;
 
   @ApiProperty({ example: 'https://example.com/thumbnail.jpg', type: String })
-  @IsNotEmpty()
   thumbnail: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })

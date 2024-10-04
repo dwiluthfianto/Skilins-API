@@ -17,8 +17,6 @@ export class CreateAudioPodcastDto extends ContentDto {
     example: 'https://example.com/video.mp4',
     type: String,
   })
-  @IsNotEmpty()
-  @IsString()
   file_url: string;
 
   @ApiProperty({

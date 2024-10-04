@@ -104,7 +104,7 @@ export class PklReportsService {
 
   async findOne(uuid: string) {
     await this.uuidHelper.validateUuidContent(uuid);
-    const report = await this.prisma.contents.findUnique({
+    const report = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid, type: 'PklReport' },
       include: {
         category: true,

@@ -25,7 +25,7 @@ export class MajorsService {
     return {
       status: 'success',
       data: majors.map((major) => ({
-        id: major.uuid,
+        uuid: major.uuid,
         image_url: major.image_url,
         avatar_url: major.avatar_url,
         name: major.name,
@@ -34,11 +34,13 @@ export class MajorsService {
     };
   }
 
-  async findOne(id: string) {
-    const major = await this.prisma.majors.findUnique({ where: { uuid: id } });
+  async findOne(uuid: string) {
+    const major = await this.prisma.majors.findUniqueOrThrow({
+      where: { uuid },
+    });
 
     if (!major) {
-      throw new NotFoundException(`Major with ${id} does not exist.`);
+      throw new NotFoundException(`Major with ${uuid} does not exist.`);
     }
     return {
       status: 'success',
@@ -51,10 +53,12 @@ export class MajorsService {
     };
   }
 
-  async update(id: string, updateMajorDto: UpdateMajorDto) {
+  async update(uuid: string, updateMajorDto: UpdateMajorDto) {
     const { name, avatar_url, description, image_url } = updateMajorDto;
+    await this.prisma.majors.findUniqueOrThrow({ where: { uuid } });
+
     const major = await this.prisma.majors.update({
-      where: { uuid: id },
+      where: { uuid: uuid },
       data: {
         name,
         avatar_url,
@@ -66,11 +70,20 @@ export class MajorsService {
     return {
       status: 'success',
       message: 'Majors succesfully updated!',
-      data: { id: major.uuid },
+      data: { uuid: major.uuid },
     };
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} major`;
+  async remove(uuid: string) {
+    await this.prisma.majors.findUniqueOrThrow({ where: { uuid } });
+
+    const major = await this.prisma.majors.delete({ where: { uuid } });
+    return {
+      status: 'success',
+      message: 'major successfully deleted!',
+      data: {
+        uuid: major.uuid,
+      },
+    };
   }
 }

@@ -22,6 +22,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
+import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Category')
 @Controller({ path: 'api/categories', version: '1' })
@@ -32,6 +33,8 @@ export class CategoriesController {
   ) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @UseInterceptors(FileInterceptor('avatar_url'))
   @ApiCreatedResponse({ type: Category })
   @HttpCode(HttpStatus.CREATED)
@@ -39,17 +42,39 @@ export class CategoriesController {
     @UploadedFile() avatar_url: Express.Multer.File,
     @Body() createCategoryDto: CreateCategoryDto,
   ) {
-    const { success, url, error } = await this.supabaseService.uploadFile(
-      avatar_url,
-      'skilins_storage/public/images/avatars',
-    );
+    let avatarFilename: string;
+    try {
+      if (avatar_url && avatar_url.size > 0) {
+        const { success, url, fileName, error } =
+          await this.supabaseService.uploadFile(
+            avatar_url,
+            `skilins_storage/${ContentFileEnum.avatar}`,
+          );
 
-    if (!success) {
-      throw new Error(`Failed to upload image: ${error}`);
+        if (!success) {
+          throw new Error(`Failed to upload image: ${error}`);
+        }
+
+        avatarFilename = fileName;
+        createCategoryDto.avatar_url = url;
+      }
+      return await this.categoriesService.create(createCategoryDto);
+    } catch (e) {
+      console.error('Error during category podcast creation:', e.message);
+
+      const { success, error } = await this.supabaseService.deleteFile([
+        `${ContentFileEnum.avatar}${avatarFilename}`,
+      ]);
+
+      if (!success) {
+        console.error('Failed to delete files:', error);
+      }
+
+      return {
+        message:
+          'Failed to create category podcast and cleaned up uploaded files.',
+      };
     }
-
-    createCategoryDto.avatar_url = url;
-    return this.categoriesService.create(createCategoryDto);
   }
   @Get()
   @ApiOkResponse({ type: Category, isArray: true })
@@ -68,13 +93,33 @@ export class CategoriesController {
   @Patch(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
+  @UseInterceptors(FileInterceptor('avatar_url'))
   @ApiOkResponse({ type: Category })
   @HttpCode(HttpStatus.OK)
-  update(
+  async update(
     @Param('uuid') uuid: string,
+    @UploadedFile() avatar_url: Express.Multer.File,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
-    return this.categoriesService.update(uuid, updateCategoryDto);
+    const category = await this.categoriesService.update(
+      uuid,
+      updateCategoryDto,
+    );
+    if (category.status === 'success') {
+      const isExist = await this.categoriesService.findOne(uuid);
+      if (avatar_url && avatar_url.size > 0) {
+        const avatarFilename = isExist.data.avatar_url.split('/').pop();
+        const { success, error } = await this.supabaseService.updateFile(
+          `${ContentFileEnum.avatar}${avatarFilename}`,
+          avatar_url,
+        );
+        if (!success) {
+          throw new Error(`Failed to update avatar: ${error}`);
+        }
+      }
+    }
+
+    return category;
   }
 
   @Delete(':uuid')
@@ -82,7 +127,21 @@ export class CategoriesController {
   @Roles('admin')
   @ApiOkResponse({ type: Category })
   @HttpCode(HttpStatus.OK)
-  remove(@Param('uuid') uuid: string) {
-    return this.categoriesService.remove(uuid);
+  async remove(@Param('uuid') uuid: string) {
+    const isExist = await this.categoriesService.findOne(uuid);
+    const thumbFilename = isExist.data.avatar_url.split('/').pop();
+    if (isExist) {
+      const category = await this.categoriesService.remove(uuid);
+      if (category.status === 'success') {
+        const { success, error } = await this.supabaseService.deleteFile([
+          `${ContentFileEnum.avatar}${thumbFilename}`,
+        ]);
+
+        if (!success) {
+          console.error('Failed to delete avatar:', error);
+        }
+      }
+      return category;
+    }
   }
 }

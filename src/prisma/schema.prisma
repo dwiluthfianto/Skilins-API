@@ -15,19 +15,21 @@ datasource db {
 }
 
 model Users {
-  id         Int        @id @default(autoincrement())
-  uuid       String     @unique @default(uuid())
-  username   String     @unique
-  email      String     @unique
-  full_name  String
-  password   String
-  created_at DateTime   @default(now())
-  updated_at DateTime   @updatedAt
-  roles_id   Int
-  roles      Roles      @relation(fields: [roles_id], references: [id])
-  likes      Likes[]
-  comments   Comments[]
-  Blogs      Blogs[]
+  id           Int        @id @default(autoincrement())
+  uuid         String     @unique @default(uuid())
+  username     String     @unique
+  email        String     @unique
+  full_name    String
+  profile_url  String?
+  password     String
+  refreshToken String?    @unique
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+  roles_id     Int
+  roles        Roles      @relation(fields: [roles_id], references: [id])
+  likes        Likes[]
+  comments     Comments[]
+  Blogs        Blogs[]
 }
 
 model Roles {
@@ -75,7 +77,7 @@ model Contents {
   type        ContentType // Ebook, Video Podcast, Audio Podcast, etc.
   title       String
   thumbnail   String
-  description String
+  description String?
   subjects    String[]
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
@@ -101,18 +103,18 @@ model Contents {
 model Categories {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
-  avatar_url  String
+  avatar_url  String?
   name        String     @unique
-  description String
+  description String?
   content     Contents[]
 }
 
 model Tags {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
-  avatar_url  String
+  avatar_url  String?
   name        String     @unique
-  description String
+  description String?
   content     Contents[]
 }
 
@@ -187,16 +189,16 @@ model PklReports {
 }
 
 model Students {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
-  image_url  String
-  nis        String   @unique
+  id         Int       @id @default(autoincrement())
+  uuid       String    @unique @default(uuid())
+  image_url  String?
+  nis        String    @unique
   name       String
   major_id   Int
-  major      Majors   @relation(fields: [major_id], references: [id])
-  birthplace String
-  birthdate  DateTime
-  age        Int
+  major      Majors    @relation(fields: [major_id], references: [id])
+  birthplace String?
+  birthdate  DateTime?
+  age        Int?
   status     Boolean
 
   VideoPodcasts VideoPodcasts[]
@@ -211,8 +213,8 @@ model Majors {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
   name        String
-  image_url   String
-  description String
-  avatar_url  String
+  image_url   String?
+  description String?
+  avatar_url  String?
   students    Students[]
 }

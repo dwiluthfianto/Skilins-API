@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsInt, IsNotEmpty } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreateNovelDto extends ContentDto {
@@ -11,10 +12,11 @@ export class CreateNovelDto extends ContentDto {
   author_uuid: string;
 
   @ApiProperty({ example: 0, type: Number })
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
   @IsNotEmpty()
   pages: number;
 
   @ApiProperty({ example: 'https://example.com/document.pdf', type: String })
-  @IsNotEmpty()
   file_url: string;
 }

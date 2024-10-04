@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { EbooksService } from './ebooks.service';
 import { EbooksController } from './ebooks.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
-import { UuidModule } from 'src/common/helpers/uuid.module';
+import { SupabaseService } from 'src/supabase';
+import { UuidHelper } from 'src/common/helpers/uuid.helper';
 
 @Module({
   controllers: [EbooksController],
-  providers: [EbooksService],
-  imports: [PrismaModule, UuidModule],
+  providers: [EbooksService, SupabaseService, UuidHelper],
+  imports: [PrismaModule],
 })
 export class EbooksModule {}

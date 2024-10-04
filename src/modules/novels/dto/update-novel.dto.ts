@@ -1,5 +1,7 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateNovelDto } from './create-novel.dto';
+import { Transform } from 'class-transformer';
+import { IsInt } from 'class-validator';
 
 export class UpdateNovelDto extends PartialType(CreateNovelDto) {
   @ApiPropertyOptional({
@@ -9,6 +11,8 @@ export class UpdateNovelDto extends PartialType(CreateNovelDto) {
   author_uuid: string;
 
   @ApiPropertyOptional({ example: 0, type: Number })
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
   pages: number;
 
   @ApiPropertyOptional({
