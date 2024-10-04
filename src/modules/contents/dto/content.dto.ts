@@ -6,7 +6,7 @@ import { UpdateTagDto } from 'src/modules/tags/dto/update-tag.dto';
 export class ContentDto {
   @ApiProperty({ example: 'Content Title', type: String })
   @IsNotEmpty()
-  @MinLength(10)
+  @MinLength(5)
   title: string;
 
   @ApiProperty({ example: 'https://example.com/thumbnail.jpg', type: String })

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
 import { UpdateAudioPodcastDto } from './dto/update-audio-podcast.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -24,6 +24,9 @@ export class AudioPodcastsService {
       tags,
     } = createAudioPodcastDto;
 
+    const durationStr = duration + '';
+    const durationInt = parseInt(durationStr);
+
     const audio = await this.prisma.contents.create({
       data: {
         type: 'AudioPodcast',
@@ -35,7 +38,7 @@ export class AudioPodcastsService {
         AudioPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
-            duration: duration || 0,
+            duration: durationInt,
             file_url,
           },
         },
@@ -111,7 +114,7 @@ export class AudioPodcastsService {
   }
 
   async findOne(uuid: string) {
-    const audio = await this.prisma.contents.findUnique({
+    const audio = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid },
       include: {
         category: true,
@@ -125,9 +128,6 @@ export class AudioPodcastsService {
         },
       },
     });
-    if (!audio) {
-      throw new NotFoundException(`Audio with Id ${uuid} does not exist`);
-    }
     return {
       status: 'success',
       data: {

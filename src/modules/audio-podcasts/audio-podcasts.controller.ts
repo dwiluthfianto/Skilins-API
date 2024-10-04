@@ -148,7 +148,12 @@ export class AudioPodcastsController {
     },
     @Body() updateAudioPodcastDto: UpdateAudioPodcastDto,
   ) {
-    try {
+    const audio = await this.audioPodcastsService.update(
+      uuid,
+      updateAudioPodcastDto,
+    );
+
+    if (audio.status === 'success') {
       const isExist = await this.audioPodcastsService.findOne(uuid);
 
       const thumbFilename = isExist.data.thumbnail.split('/').pop();
@@ -173,17 +178,6 @@ export class AudioPodcastsController {
       if (!fileSuccess) {
         throw new Error(`Failed to update file: ${fileError}`);
       }
-
-      return await this.audioPodcastsService.update(
-        uuid,
-        updateAudioPodcastDto,
-      );
-    } catch (e) {
-      console.error('Error during audio podcast creation:', e.message);
-
-      return {
-        message: 'Failed to update audio podcast.',
-      };
     }
   }
 

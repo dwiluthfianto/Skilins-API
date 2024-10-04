@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateAudioPodcastDto } from './create-audio-podcast.dto';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
   @ApiPropertyOptional({
@@ -8,7 +9,8 @@ export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
     type: Number,
   })
   @IsOptional()
-  @IsNumber()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
   duration?: number;
 
   @ApiPropertyOptional({

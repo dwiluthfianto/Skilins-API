@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreateAudioPodcastDto extends ContentDto {
@@ -8,7 +9,8 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: Number,
   })
   @IsNotEmpty()
-  @IsNumber()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
   duration: number;
 
   @ApiProperty({
