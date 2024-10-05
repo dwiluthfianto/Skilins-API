@@ -25,7 +25,7 @@ import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
 
 @ApiTags('Contents')
-@Controller({ path: 'api/contents/reports', version: '1' })
+@Controller({ path: 'api/v1/contents/reports', version: '1' })
 export class PklReportsController {
   constructor(
     private readonly pklReportsService: PklReportsService,

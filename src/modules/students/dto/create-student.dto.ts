@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { SexType } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateStudentDto {
   @ApiProperty({ example: 'https://example.com/siswa.jpg', type: String })
@@ -15,11 +17,11 @@ export class CreateStudentDto {
   name: string;
 
   @ApiProperty({
-    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    example: 'RPL',
     type: String,
   })
   @IsNotEmpty()
-  major_uuid: string;
+  major: string;
 
   @ApiProperty({ example: 'Bogor', type: String })
   @IsNotEmpty()
@@ -29,11 +31,13 @@ export class CreateStudentDto {
   @IsNotEmpty()
   birthdate: Date;
 
-  @ApiProperty({ example: 17, type: Number })
+  @ApiProperty({ example: 'male', enum: SexType })
   @IsNotEmpty()
-  age: number;
+  sex: SexType;
 
   @ApiProperty({ example: 'true', type: Boolean })
+  @Transform(({ value }) => Boolean(value))
+  @IsBoolean()
   @IsNotEmpty()
   status: boolean = true;
 }

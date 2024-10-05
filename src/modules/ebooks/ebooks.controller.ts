@@ -30,7 +30,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Contents')
-@Controller({ path: 'api/contents/ebooks', version: '1' })
+@Controller({ path: 'api/v1/contents/ebooks', version: '1' })
 export class EbooksController {
   constructor(
     private readonly ebooksService: EbooksService,

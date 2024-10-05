@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { SexType } from '@prisma/client';
 
 export class Student {
   @ApiProperty({
@@ -14,10 +15,10 @@ export class Student {
   name: string;
 
   @ApiProperty({
-    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    example: 'RPL',
     type: String,
   })
-  major_uuid: string;
+  major: string;
 
   @ApiProperty({ example: 'Bogor', type: String })
   birthplace: string;
@@ -25,8 +26,8 @@ export class Student {
   @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
   birthdate: Date;
 
-  @ApiProperty({ example: 17, type: Number })
-  age;
+  @ApiProperty({ example: 'male', enum: SexType })
+  sex: SexType;
 
   @ApiProperty({ example: 'true', type: Boolean })
   status: boolean = true;

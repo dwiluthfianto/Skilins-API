@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateStudentDto } from './create-student.dto';
 import { IsOptional } from 'class-validator';
+import { SexType } from '@prisma/client';
 
 export class UpdateStudentDto extends PartialType(CreateStudentDto) {
   @ApiPropertyOptional({
@@ -19,11 +20,11 @@ export class UpdateStudentDto extends PartialType(CreateStudentDto) {
   name?: string;
 
   @ApiPropertyOptional({
-    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    example: 'RPL',
     type: String,
   })
   @IsOptional()
-  major_uuid?: string;
+  major: string;
 
   @ApiPropertyOptional({ example: 'Bogor', type: String })
   @IsOptional()
@@ -33,9 +34,9 @@ export class UpdateStudentDto extends PartialType(CreateStudentDto) {
   @IsOptional()
   birthdate?: Date;
 
-  @ApiPropertyOptional({ example: 17, type: Number })
+  @ApiPropertyOptional({ example: 'male', enum: SexType })
   @IsOptional()
-  age?: number;
+  sex: SexType;
 
   @ApiPropertyOptional({ example: 'true', type: Boolean })
   @IsOptional()

@@ -26,7 +26,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Student')
-@Controller({ path: 'api/students', version: '1' })
+@Controller({ path: 'api/v1/students', version: '1' })
 export class StudentsController {
   constructor(
     private readonly studentsService: StudentsService,

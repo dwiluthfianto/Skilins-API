@@ -25,7 +25,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Tag')
-@Controller('tags')
+@Controller({ path: 'api/v1/tags', version: '1' })
 export class TagsController {
   constructor(
     private readonly tagsService: TagsService,

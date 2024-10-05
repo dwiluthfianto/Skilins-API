@@ -4,8 +4,10 @@ import { RoleUserDto } from './dto/role-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
+import { ApiTags } from '@nestjs/swagger';
 
-@Controller('users')
+@ApiTags('User')
+@Controller({ path: 'api/v1/users', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

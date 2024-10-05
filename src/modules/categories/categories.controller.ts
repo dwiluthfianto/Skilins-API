@@ -25,7 +25,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Category')
-@Controller({ path: 'api/categories', version: '1' })
+@Controller({ path: 'api/v1/categories', version: '1' })
 export class CategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,

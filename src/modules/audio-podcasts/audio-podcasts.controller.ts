@@ -25,7 +25,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Contents')
-@Controller({ path: 'api/contents/audios', version: '1' })
+@Controller({ path: 'api/v1/contents/audios', version: '1' })
 export class AudioPodcastsController {
   constructor(
     private readonly audioPodcastsService: AudioPodcastsService,

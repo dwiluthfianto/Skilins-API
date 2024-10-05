@@ -7,6 +7,7 @@ import {
   HttpCode,
   Req,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
@@ -14,8 +15,10 @@ import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags } from '@nestjs/swagger';
 
-@Controller('auth')
+@ApiTags('Auth')
+@Controller({ path: 'api/v1/auth', version: '1' })
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -48,9 +51,15 @@ export class AuthController {
     return this.authService.register(authRegisterLoginDto);
   }
 
+  @Get('user')
+  @UseGuards(AuthGuard('jwt'))
+  async getLoginUser(@Req() req: Request) {
+    const user = req.user;
+    return this.authService.getLoginUser(user['sub']);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
   async refresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken = req.cookies['refreshToken'];
 

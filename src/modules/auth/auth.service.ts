@@ -20,7 +20,6 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  // User login
   async login(
     authEmailLoginDto: AuthEmailLoginDto,
   ): Promise<{ accessToken?: string; refreshToken?: string; data?: any }> {
@@ -62,7 +61,6 @@ export class AuthService {
     };
   }
 
-  // User registration
   async register(authRegisterLoginDto: AuthRegisterLoginDto) {
     const hashedPassword = await bcrypt.hash(authRegisterLoginDto.password, 10);
 
@@ -103,24 +101,25 @@ export class AuthService {
   async refreshTokens(refreshToken: string) {
     const decoded = this.jwtService.decode(refreshToken) as any;
 
-    // Check if we can extract the UUID from the token payload
     if (!decoded || !decoded.sub) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Find user by UUID (sub in JWT payload)
     const user = await this.userService.findOne(decoded.sub);
 
-    if (!user || !(await this.validateRefreshToken(user.uuid, refreshToken))) {
+    if (
+      !user ||
+      !(await this.validateRefreshToken(user.data.uuid, refreshToken))
+    ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     const payload = {
-      email: user.email,
-      sub: user.uuid,
-      role: user.roles.name,
+      email: user.data.email,
+      sub: user.data.uuid,
+      role: user.data.role,
     };
-    // Generate new access and refresh tokens
+
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
       expiresIn: '15m',
@@ -130,8 +129,7 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    // Update refresh token in database
-    await this.userService.updateRefreshToken(user.uuid, newRefreshToken);
+    await this.userService.updateRefreshToken(user.data.uuid, newRefreshToken);
 
     return { accessToken, newRefreshToken };
   }
@@ -144,11 +142,14 @@ export class AuthService {
 
     if (!user || !user.refreshToken) return false;
 
-    // Compare the stored (hashed) token with the one provided by the user
     return bcrypt.compare(refreshToken, user.refreshToken);
   }
 
   async logout(uuid: string): Promise<void> {
     await this.userService.clearRefreshToken(uuid);
+  }
+
+  async getLoginUser(uuid: string) {
+    return await this.userService.findOne(uuid);
   }
 }

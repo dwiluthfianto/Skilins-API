@@ -26,7 +26,7 @@ model Users {
   created_at   DateTime   @default(now())
   updated_at   DateTime   @updatedAt
   roles_id     Int
-  roles        Roles      @relation(fields: [roles_id], references: [id])
+  roles        Roles      @relation(fields: [roles_id], references: [id], onDelete: Restrict)
   likes        Likes[]
   comments     Comments[]
   Blogs        Blogs[]
@@ -43,9 +43,9 @@ model Likes {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
   content_id Int
-  content    Contents @relation(fields: [content_id], references: [id])
+  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
   liked_by   Int
-  user       Users    @relation(fields: [liked_by], references: [id])
+  user       Users    @relation(fields: [liked_by], references: [id], onDelete: Cascade)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
@@ -54,12 +54,12 @@ model Comments {
   id              Int      @id @default(autoincrement())
   uuid            String   @unique @default(uuid())
   content_id      Int
-  content         Contents @relation(fields: [content_id], references: [id])
+  content         Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
   comment_content String
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
   commented_by    Int
-  user            Users    @relation(fields: [commented_by], references: [id])
+  user            Users    @relation(fields: [commented_by], references: [id], onDelete: Cascade)
 }
 
 enum ContentType {
@@ -82,7 +82,7 @@ model Contents {
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
   category_id Int
-  category    Categories  @relation(fields: [category_id], references: [id])
+  category    Categories  @relation(fields: [category_id], references: [id], onDelete: Restrict)
   tags        Tags[]
   comments    Comments[]
   likes       Likes[]
@@ -124,7 +124,7 @@ model VideoPodcasts {
   duration   Int
   file_url   String
   creator_id Int
-  creator    Students @relation(fields: [creator_id], references: [id])
+  creator    Students @relation(fields: [creator_id], references: [id], onDelete: Cascade)
   content_id Int      @unique
   content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
@@ -135,7 +135,7 @@ model AudioPodcasts {
   duration   Int
   file_url   String
   creator_id Int
-  creator    Students @relation(fields: [creator_id], references: [id])
+  creator    Students @relation(fields: [creator_id], references: [id], onDelete: Cascade)
   content_id Int      @unique
   content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
@@ -147,7 +147,7 @@ model Blogs {
   author_id    Int
   published    Boolean
   published_at DateTime
-  author       Users    @relation(fields: [author_id], references: [id])
+  author       Users    @relation(fields: [author_id], references: [id], onDelete: Cascade)
   content_id   Int      @unique
   content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
@@ -169,7 +169,7 @@ model Novels {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
   author_id  Int
-  author     Students @relation(fields: [author_id], references: [id])
+  author     Students @relation(fields: [author_id], references: [id], onDelete: Cascade)
   pages      Int
   file_url   String
   content_id Int      @unique
@@ -180,12 +180,17 @@ model PklReports {
   id           Int      @id @default(autoincrement())
   uuid         String   @unique @default(uuid())
   author_id    Int
-  author       Students @relation(fields: [author_id], references: [id])
+  author       Students @relation(fields: [author_id], references: [id], onDelete: Cascade)
   pages        Int
   file_url     String
   published_at DateTime
   content_id   Int      @unique
   content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+}
+
+enum SexType {
+  male
+  female
 }
 
 model Students {
@@ -195,10 +200,10 @@ model Students {
   nis        String    @unique
   name       String
   major_id   Int
-  major      Majors    @relation(fields: [major_id], references: [id])
+  major      Majors    @relation(fields: [major_id], references: [id], onDelete: Restrict)
   birthplace String?
   birthdate  DateTime?
-  age        Int?
+  sex        SexType
   status     Boolean
 
   VideoPodcasts VideoPodcasts[]
@@ -212,7 +217,7 @@ model Students {
 model Majors {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
-  name        String
+  name        String     @unique
   image_url   String?
   description String?
   avatar_url  String?

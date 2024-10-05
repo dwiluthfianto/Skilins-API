@@ -7,16 +7,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
   async create(createStudentDto: CreateStudentDto) {
-    const {
-      nis,
-      image_url,
-      name,
-      major_uuid,
-      birthplace,
-      birthdate,
-      age,
-      status,
-    } = createStudentDto;
+    const { nis, image_url, name, major, birthplace, birthdate, sex, status } =
+      createStudentDto;
     const student = await this.prisma.students.create({
       data: {
         nis,
@@ -24,9 +16,9 @@ export class StudentsService {
         name,
         birthdate,
         birthplace,
-        age,
+        sex,
         status,
-        major: { connect: { uuid: major_uuid } },
+        major: { connect: { name: major } },
       },
     });
 
@@ -50,7 +42,7 @@ export class StudentsService {
         name: student.name,
         birthplace: student.birthplace,
         birthdate: student.birthdate,
-        age: student.age,
+        sex: student.sex,
         major: student.major.name,
         status: student.status,
       })),
@@ -72,7 +64,7 @@ export class StudentsService {
         name: student.name,
         birthplace: student.birthplace,
         birthdate: student.birthdate,
-        age: student.age,
+        sex: student.sex,
         major: student.major.name,
         status: student.status,
       },
@@ -80,18 +72,10 @@ export class StudentsService {
   }
 
   async update(uuid: string, updateStudentDto: UpdateStudentDto) {
-    const {
-      image_url,
-      nis,
-      name,
-      major_uuid,
-      birthplace,
-      birthdate,
-      age,
-      status,
-    } = updateStudentDto;
+    const { image_url, nis, name, major, birthplace, birthdate, sex, status } =
+      updateStudentDto;
 
-    await this.prisma.majors.findUniqueOrThrow({ where: { uuid: major_uuid } });
+    await this.prisma.majors.findUniqueOrThrow({ where: { name: major } });
     await this.prisma.students.findUniqueOrThrow({ where: { uuid } });
 
     const student = await this.prisma.students.update({
@@ -102,9 +86,9 @@ export class StudentsService {
         name,
         birthdate,
         birthplace,
-        age,
+        sex,
         status,
-        major: { connect: { uuid: major_uuid } },
+        major: { connect: { name: major } },
       },
     });
 

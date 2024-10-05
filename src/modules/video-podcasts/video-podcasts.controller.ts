@@ -30,7 +30,7 @@ import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
 
 @ApiTags('Contents')
-@Controller({ path: 'api/contents/videos', version: '1' })
+@Controller({ path: 'api/v1/contents/videos', version: '1' })
 export class VideoPodcastsController {
   constructor(
     private readonly videoPodcastsService: VideoPodcastsService,

@@ -20,7 +20,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Contents')
-@Controller({ path: 'api/contents/blogs', version: '1' })
+@Controller({ path: 'api/v1/contents/blogs', version: '1' })
 export class BlogsController {
   constructor(private readonly blogsService: BlogsService) {}
 

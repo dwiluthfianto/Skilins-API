@@ -24,8 +24,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 @ApiTags('Major')
-@Controller({ path: 'api/majors', version: '1' })
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Controller({ path: 'api/v1/majors', version: '1' })
 @Roles('admin')
 export class MajorsController {
   constructor(

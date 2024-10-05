@@ -8,10 +8,22 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findOne(uuid: string) {
-    return await this.prisma.users.findUniqueOrThrow({
+    const user = await this.prisma.users.findUniqueOrThrow({
       where: { uuid },
       include: { roles: true }, // Include role information
     });
+
+    return {
+      status: 'success',
+      data: {
+        uuid: user.uuid,
+        profile: user.profile_url,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.roles.name,
+      },
+    };
   }
 
   async assignRoleToUser(roleUser: RoleUserDto) {
