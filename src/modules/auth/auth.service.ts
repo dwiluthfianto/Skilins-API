@@ -6,6 +6,7 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly userService: UsersService,
+    private readonly configService: ConfigService,
   ) {}
 
   // User login
@@ -39,8 +41,14 @@ export class AuthService {
       sub: user.uuid,
       role: user.roles.name,
     };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expiresIn: '15m',
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      expiresIn: '7d',
+    });
 
     await this.userService.updateRefreshToken(user.uuid, refreshToken);
     return {
@@ -82,6 +90,8 @@ export class AuthService {
   }
 
   async validateUser(uuid: string) {
+    console.log(uuid);
+
     const user = await this.prisma.users.findUniqueOrThrow({
       where: { uuid },
       include: { roles: true },
@@ -111,8 +121,14 @@ export class AuthService {
       role: user.roles.name,
     };
     // Generate new access and refresh tokens
-    const accessToken = this.jwtService.sign(payload);
-    const newRefreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expiresIn: '15m',
+    });
+    const newRefreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      expiresIn: '7d',
+    });
 
     // Update refresh token in database
     await this.userService.updateRefreshToken(user.uuid, newRefreshToken);

@@ -126,7 +126,10 @@ export class TagsController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.tagsService.findOne(uuid);
-    const thumbFilename = isExist.data.avatar_url.split('/').pop();
+    const thumbFilename = isExist.data.avatar_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const tag = await this.tagsService.remove(uuid);
       if (tag.status === 'success') {

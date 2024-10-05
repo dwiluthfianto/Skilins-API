@@ -138,7 +138,10 @@ export class StudentsController {
   @Roles('admin')
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.studentsService.findOne(uuid);
-    const thumbFilename = isExist.data.image_url.split('/').pop();
+    const thumbFilename = isExist.data.image_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const student = await this.studentsService.remove(uuid);
       if (student.status === 'success') {

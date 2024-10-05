@@ -182,20 +182,19 @@ export class MajorsController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.majorsService.findOne(uuid);
-    const avatarFilename = isExist.data.avatar_url.split('/').pop();
-    const imageFilename = isExist.data.image_url.split('/').pop();
+    const avatarFilename = isExist.data.avatar_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
+    const imageFilename = isExist.data.image_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const major = await this.majorsService.remove(uuid);
       if (major.status === 'success') {
-        const { success: successAvatar, error: errorAvatar } =
-          await this.supabaseService.deleteFile([
-            `${ContentFileEnum.avatar}${avatarFilename}`,
-          ]);
-
-        if (!successAvatar) {
-          console.error('Failed to delete avatar:', errorAvatar);
-        }
         const { success, error } = await this.supabaseService.deleteFile([
+          `${ContentFileEnum.avatar}${avatarFilename}`,
           `${ContentFileEnum.major}${imageFilename}`,
         ]);
 

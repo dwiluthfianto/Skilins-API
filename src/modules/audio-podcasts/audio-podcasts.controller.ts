@@ -200,25 +200,24 @@ export class AudioPodcastsController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.audioPodcastsService.findOne(uuid);
-    const thumbFilename = isExist.data.thumbnail.split('/').pop();
-    const fileFilename = isExist.data.file_url.split('/').pop();
+    const thumbFilename = isExist.data.thumbnail
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
+    const fileFilename = isExist.data.file_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const audio = await this.audioPodcastsService.remove(uuid);
       if (audio.status === 'success') {
-        const { success: successThumb, error: errorThumb } =
-          await this.supabaseService.deleteFile([
-            `${ContentFileEnum.thumbnail}${thumbFilename}`,
-          ]);
-
-        if (!successThumb) {
-          console.error('Failed to delete thumbnail:', errorThumb);
-        }
         const { success, error } = await this.supabaseService.deleteFile([
           `${ContentFileEnum.file_audio}${fileFilename}`,
+          `${ContentFileEnum.thumbnail}${thumbFilename}`,
         ]);
 
         if (!success) {
-          console.error('Failed to delete file:', error);
+          console.error('Failed to delete thumbnail and file', error);
         }
       }
       return audio;

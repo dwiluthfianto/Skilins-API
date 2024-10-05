@@ -30,23 +30,12 @@ export class AuthController {
     const { accessToken, refreshToken } =
       await this.authService.login(authEmailLoginDto);
 
-    console.log('Access Token:', accessToken);
-    console.log('Refresh Token:', refreshToken);
-
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
-
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: false,
-      // sameSite: 'strict', // Mitigate CSRF attacks
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Return the access token to the client
     return res.send({
       status: 'success',
       message: 'Logged in successfully',
@@ -79,6 +68,7 @@ export class AuthController {
       res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
         secure: false,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       return res.json({
@@ -102,11 +92,6 @@ export class AuthController {
 
     // Clear the refresh token from the database
     await this.authService.logout(user['sub']);
-
-    res.clearCookie('accessToken', {
-      httpOnly: true,
-      secure: false,
-    });
 
     res.clearCookie('refreshToken', {
       httpOnly: true,

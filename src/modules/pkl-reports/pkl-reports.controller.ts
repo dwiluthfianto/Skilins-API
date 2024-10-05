@@ -196,20 +196,19 @@ export class PklReportsController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.pklReportsService.findOne(uuid);
-    const thumbFilename = isExist.data.thumbnail.split('/').pop();
-    const fileFilename = isExist.data.file_url.split('/').pop();
+    const thumbFilename = isExist.data.thumbnail
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
+    const fileFilename = isExist.data.file_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const report = await this.pklReportsService.remove(uuid);
       if (report.status === 'success') {
-        const { success: successThumb, error: errorThumb } =
-          await this.supabaseService.deleteFile([
-            `${ContentFileEnum.thumbnail}${thumbFilename}`,
-          ]);
-
-        if (!successThumb) {
-          console.error('Failed to delete thumbnail:', errorThumb);
-        }
         const { success, error } = await this.supabaseService.deleteFile([
+          `${ContentFileEnum.thumbnail}${thumbFilename}`,
           `${ContentFileEnum.file_report}${fileFilename}`,
         ]);
 

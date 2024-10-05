@@ -20,14 +20,23 @@ import { JwtStrategy } from 'src/common/strategies/jwt.strategy';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         return {
-          secret: configService.get('JWT_SECRET'),
+          secret: configService.get<string>('JWT_SECRET'),
+        };
+      },
+      inject: [ConfigService],
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        return {
+          secret: configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
         };
       },
       inject: [ConfigService],
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SupabaseService, PrismaService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, SupabaseService, PrismaService],
   exports: [AuthService],
 })
 export class AuthModule {}

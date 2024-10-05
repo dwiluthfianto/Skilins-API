@@ -129,7 +129,10 @@ export class CategoriesController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.categoriesService.findOne(uuid);
-    const thumbFilename = isExist.data.avatar_url.split('/').pop();
+    const thumbFilename = isExist.data.avatar_url
+      .split('/')
+      .pop()
+      .replace(/%20/g, ' ');
     if (isExist) {
       const category = await this.categoriesService.remove(uuid);
       if (category.status === 'success') {
