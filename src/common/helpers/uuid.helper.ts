@@ -13,10 +13,10 @@ export class UuidHelper {
     return content;
   }
 
-  async validateUuidCategory(uuid: string) {
+  async validateUuidCategory(name: string) {
     const category = await this.prisma.categories.findUniqueOrThrow({
-      where: { uuid },
-      select: { id: true },
+      where: { name },
+      select: { name: true },
     });
     return category;
   }

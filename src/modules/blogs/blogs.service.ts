@@ -17,7 +17,7 @@ export class BlogsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       author_uuid,
       blog_content,
       published,
@@ -31,7 +31,7 @@ export class BlogsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { uuid: category_name } },
         Blogs: {
           create: {
             author: { connect: { uuid: author_uuid } },
@@ -161,7 +161,7 @@ export class BlogsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       author_uuid,
       blog_content,
       published,
@@ -170,7 +170,7 @@ export class BlogsService {
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const author = await this.uuidHelper.validateUuidCreator(author_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_name);
 
     const blog = await this.prisma.contents.update({
       where: {
@@ -182,7 +182,7 @@ export class BlogsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { id: category.id } },
+        category: { connect: { name: category.name } },
         Blogs: {
           update: {
             where: { content_id: content.id },

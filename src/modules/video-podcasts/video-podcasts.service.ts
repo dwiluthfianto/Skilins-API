@@ -16,7 +16,7 @@ export class VideoPodcastsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       duration,
       file_url,
       creator_uuid,
@@ -29,7 +29,7 @@ export class VideoPodcastsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { uuid: category_name } },
         VideoPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
@@ -153,7 +153,7 @@ export class VideoPodcastsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       duration,
       file_url,
       creator_uuid,
@@ -161,7 +161,7 @@ export class VideoPodcastsService {
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_name);
 
     const video = await this.prisma.contents.update({
       where: { uuid, type: 'VideoPodcast' },
@@ -170,7 +170,7 @@ export class VideoPodcastsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { id: category.id } },
+        category: { connect: { name: category.name } },
         VideoPodcasts: {
           update: {
             where: { content_id: content.id },

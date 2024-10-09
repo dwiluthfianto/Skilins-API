@@ -20,7 +20,7 @@ export class PklReportsService {
       file_url,
       published_at,
       author_uuid,
-      category_uuid,
+      category_name,
     } = createPklReportDto;
 
     const report = await this.prisma.contents.create({
@@ -30,7 +30,7 @@ export class PklReportsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { uuid: category_name } },
         PklReports: {
           create: {
             author: { connect: { uuid: author_uuid } },
@@ -164,11 +164,11 @@ export class PklReportsService {
       file_url,
       published_at,
       author_uuid,
-      category_uuid,
+      category_name,
     } = updatePklReportDto;
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const author = await this.uuidHelper.validateUuidCreator(author_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_name);
 
     const report = await this.prisma.contents.update({
       where: { uuid },
@@ -177,7 +177,7 @@ export class PklReportsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { id: category.id } },
+        category: { connect: { name: category.name } },
         PklReports: {
           update: {
             where: { content_id: content.id },

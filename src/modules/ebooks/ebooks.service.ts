@@ -17,7 +17,7 @@ export class EbooksService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       author,
       pages,
       publication,
@@ -33,7 +33,7 @@ export class EbooksService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { uuid: category_name } },
         Ebooks: {
           create: {
             author: author,
@@ -160,7 +160,7 @@ export class EbooksService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       author,
       pages,
       publication,
@@ -170,7 +170,7 @@ export class EbooksService {
     } = updateContentDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_name);
 
     const ebook = await this.prisma.contents.update({
       where: { uuid, type: 'Ebook' },
@@ -179,7 +179,7 @@ export class EbooksService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { id: category.id } },
+        category: { connect: { name: category.name } },
         Ebooks: {
           update: {
             where: { content_id: content.id },

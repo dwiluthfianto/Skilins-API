@@ -15,16 +15,19 @@ export class ContentDto {
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ example: ['Tech', 'Science'], type: [String] })
+  @ApiPropertyOptional({
+    example: ['Tech', 'Science'],
+    type: [String],
+  })
   @IsOptional()
   subjects?: string[];
 
   @ApiProperty({
-    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    example: 'Fiction',
     type: String,
   })
   @IsNotEmpty()
-  category_uuid: string;
+  category_name: string;
 
   @ApiPropertyOptional({
     example: [

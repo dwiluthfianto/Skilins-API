@@ -181,14 +181,12 @@ export class MajorsController {
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.majorsService.findOne(uuid);
-    const avatarFilename = isExist.data.avatar_url
-      .split('/')
-      .pop()
-      .replace(/%20/g, ' ');
-    const imageFilename = isExist.data.image_url
-      .split('/')
-      .pop()
-      .replace(/%20/g, ' ');
+    const avatarFilename = isExist?.data?.avatar_url
+      ? isExist.data.avatar_url.split('/').pop().replace(/%20/g, ' ')
+      : null;
+    const imageFilename = isExist?.data?.image_url
+      ? isExist.data.image_url.split('/').pop().replace(/%20/g, ' ')
+      : null;
     if (isExist) {
       const major = await this.majorsService.remove(uuid);
       if (major.status === 'success') {

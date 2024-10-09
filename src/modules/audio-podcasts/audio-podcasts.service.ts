@@ -17,15 +17,41 @@ export class AudioPodcastsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       duration,
       file_url,
       creator_uuid,
       tags,
     } = createAudioPodcastDto;
 
-    const durationStr = duration + '';
-    const durationInt = parseInt(durationStr);
+    let parsedTags;
+
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch (error) {
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
+      }
+    } else {
+      parsedTags = [];
+    }
+
+    let parsedSubjects;
+    if (Array.isArray(subjects)) {
+      parsedSubjects = subjects;
+    } else if (typeof subjects === 'string') {
+      try {
+        parsedSubjects = JSON.parse(subjects);
+      } catch (error) {
+        console.error('Failed to parse subjects:', error);
+        throw new Error('Invalid JSON format for subjects');
+      }
+    } else {
+      parsedSubjects = [];
+    }
 
     const audio = await this.prisma.contents.create({
       data: {
@@ -33,21 +59,23 @@ export class AudioPodcastsService {
         title,
         thumbnail,
         description,
-        subjects,
-        category: { connect: { uuid: category_uuid } },
+        subjects: parsedSubjects,
+        category: { connect: { name: category_name } },
         AudioPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
-            duration: durationInt,
+            duration: duration,
             file_url,
           },
         },
         tags: {
-          connectOrCreate: tags?.map((tag) => ({
+          connectOrCreate: parsedTags?.map((tag) => ({
             where: { name: tag.name },
             create: {
               name: tag.name,
-              avatar_url: tag.avatar_url || 'null',
+              avatar_url:
+                tag.avatar_url ||
+                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
               description: tag.description || 'No description available.',
             },
           })),
@@ -168,7 +196,7 @@ export class AudioPodcastsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       duration,
       file_url,
       creator_uuid,
@@ -177,7 +205,36 @@ export class AudioPodcastsService {
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_uuid);
+    const category = await this.uuidHelper.validateUuidCategory(category_name);
+
+    let parsedTags;
+
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch (error) {
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
+      }
+    } else {
+      parsedTags = [];
+    }
+
+    let parsedSubjects;
+    if (Array.isArray(subjects)) {
+      parsedSubjects = subjects;
+    } else if (typeof subjects === 'string') {
+      try {
+        parsedSubjects = JSON.parse(subjects);
+      } catch (error) {
+        console.error('Failed to parse subjects:', error);
+        throw new Error('Invalid JSON format for subjects');
+      }
+    } else {
+      parsedSubjects = [];
+    }
 
     const audio = await this.prisma.contents.update({
       where: { uuid: uuid, type: 'AudioPodcast' },
@@ -185,8 +242,8 @@ export class AudioPodcastsService {
         title,
         thumbnail,
         description,
-        subjects,
-        category: { connect: { id: category.id } },
+        subjects: parsedSubjects,
+        category: { connect: { name: category.name } },
         AudioPodcasts: {
           update: {
             where: { content_id: content.id },
@@ -198,11 +255,13 @@ export class AudioPodcastsService {
           },
         },
         tags: {
-          connectOrCreate: tags?.map((tag) => ({
+          connectOrCreate: parsedTags?.map((tag) => ({
             where: { name: tag.name },
             create: {
               name: tag.name,
-              avatar_url: tag.avatar_url || 'default-avatar.jpg',
+              avatar_url:
+                tag.avatar_url ||
+                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
               description: tag.description || 'No description available.',
             },
           })),

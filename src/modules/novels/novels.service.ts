@@ -17,7 +17,7 @@ export class NovelsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       author_uuid,
       pages,
       file_url,
@@ -30,7 +30,7 @@ export class NovelsService {
         thumbnail,
         description,
         subjects,
-        category: { connect: { uuid: category_uuid } },
+        category: { connect: { uuid: category_name } },
         Novel: {
           create: {
             author: { connect: { uuid: author_uuid } },
@@ -156,14 +156,14 @@ export class NovelsService {
       thumbnail,
       description,
       subjects,
-      category_uuid,
+      category_name,
       pages,
       file_url,
     } = updateNovelDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
-    const category = await this.uuidHelper.validateUuidContent(category_uuid);
-    const author = await this.uuidHelper.validateUuidContent(category_uuid);
+    const category = await this.uuidHelper.validateUuidContent(category_name);
+    const author = await this.uuidHelper.validateUuidContent(category_name);
 
     const novel = await this.prisma.contents.update({
       where: {
