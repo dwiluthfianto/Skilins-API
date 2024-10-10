@@ -163,7 +163,9 @@ export class EbooksController {
     if (ebook.status === 'success') {
       const isExist = await this.ebooksService.findOne(uuid);
 
-      if (files.thumbnail && files.thumbnail.length > 0) {
+      console.log(files);
+
+      if (files?.thumbnail && files.thumbnail.length > 0) {
         const thumbFilename = isExist.data.thumbnail.split('/').pop();
 
         const { success: thumbnailSuccess, error: thumbnailError } =
@@ -177,7 +179,7 @@ export class EbooksController {
         }
       }
 
-      if (files.file_url && files.file_url.length > 0) {
+      if (files?.file_url && files.file_url.length > 0) {
         const fileFilename = isExist.data.file_url.split('/').pop();
         const { success: fileSuccess, error: fileError } =
           await this.supabaseService.updateFile(
