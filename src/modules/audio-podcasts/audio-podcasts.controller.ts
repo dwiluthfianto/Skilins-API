@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UseGuards,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { AudioPodcastsService } from './audio-podcasts.service';
 import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
@@ -120,8 +121,18 @@ export class AudioPodcastsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.audioPodcastsService.findAll();
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+    return this.audioPodcastsService.findAll(page, limit);
+  }
+
+  @Get('latest')
+  @ApiOkResponse({
+    type: AudioPodcast,
+    isArray: true,
+  })
+  @HttpCode(HttpStatus.OK)
+  findLatest() {
+    return this.audioPodcastsService.findLatest();
   }
 
   @Get(':uuid')

@@ -98,9 +98,77 @@ export class EbooksService {
     };
   }
 
-  async findAll() {
+  async findAll(page: number, limit: number) {
     const contents = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
       where: { type: 'Ebook' },
+      include: {
+        category: true,
+        tags: true,
+        comments: true,
+        likes: true,
+        Ebooks: true,
+      },
+    });
+
+    const total = await this.prisma.ebooks.count();
+
+    return {
+      status: 'success',
+      data: contents.map((content) => ({
+        uuid: content.uuid,
+        thumbnail: content.thumbnail,
+        title: content.title,
+        description: content.description,
+        subjects: content.subjects,
+        create_at: content.created_at,
+        updated_at: content.updated_at,
+        category: content.category.name,
+        author: content.Ebooks[0].author,
+        pages: content.Ebooks[0].pages,
+        publication: content.Ebooks[0].publication,
+        file_url: content.Ebooks[0].file_url,
+        isbn: content.Ebooks[0].isbn,
+        release_date: content.Ebooks[0].release_date,
+        tags: content.tags.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: content.comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: content.likes.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPage: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+  async findLatest() {
+    const currentDate = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(currentDate.getDate() - 7);
+    const contents = await this.prisma.contents.findMany({
+      take: 10,
+      where: {
+        type: 'Ebook',
+        created_at: {
+          gte: oneWeekAgo,
+          lte: currentDate,
+        },
+      },
+      orderBy: {
+        id: 'asc',
+      },
       include: {
         category: true,
         tags: true,

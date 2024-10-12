@@ -21,7 +21,37 @@ export class PklReportsService {
       published_at,
       author_uuid,
       category_name,
+      tags,
     } = createPklReportDto;
+
+    let parsedTags;
+
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch (error) {
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
+      }
+    } else {
+      parsedTags = [];
+    }
+
+    let parsedSubjects;
+    if (Array.isArray(subjects)) {
+      parsedSubjects = subjects;
+    } else if (typeof subjects === 'string') {
+      try {
+        parsedSubjects = JSON.parse(subjects);
+      } catch (error) {
+        console.error('Failed to parse subjects:', error);
+        throw new Error('Invalid JSON format for subjects');
+      }
+    } else {
+      parsedSubjects = [];
+    }
 
     const report = await this.prisma.contents.create({
       data: {
@@ -29,8 +59,8 @@ export class PklReportsService {
         title,
         thumbnail,
         description,
-        subjects,
-        category: { connect: { uuid: category_name } },
+        subjects: parsedSubjects,
+        category: { connect: { name: category_name } },
         PklReports: {
           create: {
             author: { connect: { uuid: author_uuid } },
@@ -38,6 +68,18 @@ export class PklReportsService {
             file_url,
             published_at,
           },
+        },
+        tags: {
+          connectOrCreate: parsedTags?.map((tag) => ({
+            where: { name: tag.name },
+            create: {
+              name: tag.name,
+              avatar_url:
+                tag.avatar_url ||
+                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+              description: tag.description || 'No description available.',
+            },
+          })),
         },
       },
     });
@@ -61,7 +103,11 @@ export class PklReportsService {
         comments: true,
         PklReports: {
           include: {
-            author: true,
+            author: {
+              include: {
+                major: true,
+              },
+            },
           },
         },
       },
@@ -78,7 +124,8 @@ export class PklReportsService {
         create_at: report.created_at,
         updated_at: report.updated_at,
         category: report.category.name,
-        creator: report.PklReports[0].author.name,
+        author: report.PklReports[0].author.name,
+        major: report.PklReports[0].author.major.name,
         pages: report.PklReports[0].pages,
         file_url: report.PklReports[0].file_url,
         published_at: report.PklReports[0].published_at,
@@ -113,7 +160,11 @@ export class PklReportsService {
         comments: true,
         PklReports: {
           include: {
-            author: true,
+            author: {
+              include: {
+                major: true,
+              },
+            },
           },
         },
       },
@@ -130,7 +181,8 @@ export class PklReportsService {
         create_at: report.created_at,
         updated_at: report.updated_at,
         category: report.category.name,
-        creator: report.PklReports[0].author.name,
+        author: report.PklReports[0].author.name,
+        major: report.PklReports[0].author.major.name,
         pages: report.PklReports[0].pages,
         file_url: report.PklReports[0].file_url,
         published_at: report.PklReports[0].published_at,
@@ -165,10 +217,40 @@ export class PklReportsService {
       published_at,
       author_uuid,
       category_name,
+      tags,
     } = updatePklReportDto;
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const author = await this.uuidHelper.validateUuidCreator(author_uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
+
+    let parsedTags;
+
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch (error) {
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
+      }
+    } else {
+      parsedTags = [];
+    }
+
+    let parsedSubjects;
+    if (Array.isArray(subjects)) {
+      parsedSubjects = subjects;
+    } else if (typeof subjects === 'string') {
+      try {
+        parsedSubjects = JSON.parse(subjects);
+      } catch (error) {
+        console.error('Failed to parse subjects:', error);
+        throw new Error('Invalid JSON format for subjects');
+      }
+    } else {
+      parsedSubjects = [];
+    }
 
     const report = await this.prisma.contents.update({
       where: { uuid },
@@ -176,7 +258,7 @@ export class PklReportsService {
         title,
         thumbnail,
         description,
-        subjects,
+        subjects: parsedSubjects,
         category: { connect: { name: category.name } },
         PklReports: {
           update: {
@@ -188,6 +270,18 @@ export class PklReportsService {
               published_at,
             },
           },
+        },
+        tags: {
+          connectOrCreate: parsedTags?.map((tag) => ({
+            where: { name: tag.name },
+            create: {
+              name: tag.name,
+              avatar_url:
+                tag.avatar_url ||
+                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+              description: tag.description || 'No description available.',
+            },
+          })),
         },
       },
     });
@@ -205,7 +299,7 @@ export class PklReportsService {
     await this.uuidHelper.validateUuidContent(uuid);
 
     const report = await this.prisma.contents.delete({
-      where: { uuid: uuid },
+      where: { uuid },
     });
     return {
       status: 'success',

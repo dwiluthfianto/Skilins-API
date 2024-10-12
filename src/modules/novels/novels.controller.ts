@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { NovelsService } from './novels.service';
 import { CreateNovelDto } from './dto/create-novel.dto';
@@ -118,8 +119,8 @@ export class NovelsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.novelsService.findAll();
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+    return this.novelsService.findAll(page, limit);
   }
 
   @Get(':uuid')

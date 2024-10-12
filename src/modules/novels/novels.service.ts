@@ -92,8 +92,10 @@ export class NovelsService {
     };
   }
 
-  async findAll() {
+  async findAll(page: number, limit: number) {
     const contents = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
       where: { type: 'Novel' },
       include: {
         category: true,
@@ -107,7 +109,7 @@ export class NovelsService {
         },
       },
     });
-
+    const total = await this.prisma.novels.count();
     return {
       status: 'success',
       data: contents.map((content) => ({
@@ -139,6 +141,9 @@ export class NovelsService {
           liked_by: like.liked_by,
         })),
       })),
+      totalPage: total,
+      page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 

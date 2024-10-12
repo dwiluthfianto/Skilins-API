@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDate, IsInt, IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsDate, IsInt, IsNotEmpty, IsUUID } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreatePklReportDto extends ContentDto {
@@ -16,8 +16,6 @@ export class CreatePklReportDto extends ContentDto {
   pages: number;
 
   @ApiProperty({ example: 'https://example.com/test.pdf', type: String })
-  @IsNotEmpty()
-  @IsString()
   file_url: string;
 
   @ApiProperty({ example: '2024-09-27T08:49:44.526Z', type: Date })

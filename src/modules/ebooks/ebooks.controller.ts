@@ -11,6 +11,7 @@ import {
   UseGuards,
   UploadedFiles,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { EbooksService } from './ebooks.service';
 import { CreateEbookDto } from './dto/create-ebook.dto';
@@ -127,8 +128,18 @@ export class EbooksController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.ebooksService.findAll();
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+    return this.ebooksService.findAll(page, limit);
+  }
+
+  @Get('latest')
+  @ApiOkResponse({
+    type: Ebook,
+    isArray: true,
+  })
+  @HttpCode(HttpStatus.OK)
+  findLatest() {
+    return this.ebooksService.findLatest();
   }
 
   @Get(':uuid')
