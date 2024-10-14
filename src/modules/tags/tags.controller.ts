@@ -11,6 +11,7 @@ import {
   HttpCode,
   UseInterceptors,
   UploadedFile,
+  HttpException,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
@@ -69,10 +70,13 @@ export class TagsController {
       if (!success) {
         console.error('Failed to delete files:', error);
       }
-
-      return {
-        message: 'Failed to create tag podcast and cleaned up uploaded files.',
-      };
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: `Tag creation failed: ${e.message}. ${avatarFilename ? 'Failed to clean up uploaded file' : ''}`,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

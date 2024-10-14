@@ -90,8 +90,10 @@ export class VideoPodcastsService {
     };
   }
 
-  async findAll() {
+  async findAll(page: number, limit: number) {
     const videos = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
       where: { type: 'VideoPodcast' },
       include: {
         category: true,
@@ -105,7 +107,7 @@ export class VideoPodcastsService {
         },
       },
     });
-
+    const total = await this.prisma.videoPodcasts.count();
     return {
       status: 'success',
       data: videos.map((video) => ({
@@ -114,7 +116,7 @@ export class VideoPodcastsService {
         title: video.title,
         description: video.description,
         subjects: video.subjects,
-        create_at: video.created_at,
+        created_at: video.created_at,
         updated_at: video.updated_at,
         category: video.category.name,
         creator: video.VideoPodcasts[0].creator.name,
@@ -137,6 +139,134 @@ export class VideoPodcastsService {
           liked_by: like.liked_by,
         })),
       })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+  async findByCategory(page: number, limit: number, category: string) {
+    const videos = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: {
+        type: 'VideoPodcast',
+        category: {
+          name: {
+            equals: category,
+            mode: 'insensitive',
+          },
+        },
+      },
+      include: {
+        category: true,
+        tags: true,
+        likes: true,
+        comments: true,
+        VideoPodcasts: {
+          include: {
+            creator: true,
+          },
+        },
+      },
+    });
+    const total = await this.prisma.videoPodcasts.count();
+    return {
+      status: 'success',
+      data: videos.map((video) => ({
+        uuid: video.uuid,
+        thumbnail: video.thumbnail,
+        title: video.title,
+        description: video.description,
+        subjects: video.subjects,
+        created_at: video.created_at,
+        updated_at: video.updated_at,
+        category: video.category.name,
+        creator: video.VideoPodcasts[0].creator.name,
+        duration: video.VideoPodcasts[0].duration,
+        file_url: video.VideoPodcasts[0].file_url,
+        tags: video.tags.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: video.comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: video.likes.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+  async findLatest(page: number, limit: number, week: number) {
+    const currentDate = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(currentDate.getDate() - week * 7);
+    const videos = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: {
+        type: 'VideoPodcast',
+        created_at: {
+          gte: oneWeekAgo,
+          lte: currentDate,
+        },
+      },
+      include: {
+        category: true,
+        tags: true,
+        likes: true,
+        comments: true,
+        VideoPodcasts: {
+          include: {
+            creator: true,
+          },
+        },
+      },
+    });
+    const total = await this.prisma.videoPodcasts.count();
+    return {
+      status: 'success',
+      data: videos.map((video) => ({
+        uuid: video.uuid,
+        thumbnail: video.thumbnail,
+        title: video.title,
+        description: video.description,
+        subjects: video.subjects,
+        created_at: video.created_at,
+        updated_at: video.updated_at,
+        category: video.category.name,
+        creator: video.VideoPodcasts[0].creator.name,
+        duration: video.VideoPodcasts[0].duration,
+        file_url: video.VideoPodcasts[0].file_url,
+        tags: video.tags.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: video.comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: video.likes.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 
@@ -163,7 +293,7 @@ export class VideoPodcastsService {
         title: video.title,
         description: video.description,
         subjects: video.subjects,
-        create_at: video.created_at,
+        created_at: video.created_at,
         updated_at: video.updated_at,
         category: video.category.name,
         creator: video.VideoPodcasts[0].creator.name,

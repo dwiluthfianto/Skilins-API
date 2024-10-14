@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { VideoPodcastsService } from './video-podcasts.service';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
@@ -98,8 +99,29 @@ export class VideoPodcastsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.videoPodcastsService.findAll();
+  findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('category') category: string,
+  ) {
+    if (!category) {
+      return this.videoPodcastsService.findAll(page, limit);
+    } else {
+      return this.videoPodcastsService.findByCategory(page, limit, category);
+    }
+  }
+  @Get('latest')
+  @ApiOkResponse({
+    type: VideoPodcast,
+    isArray: true,
+  })
+  @HttpCode(HttpStatus.OK)
+  findLatest(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('week') week: number = 1,
+  ) {
+    return this.videoPodcastsService.findLatest(page, limit, week);
   }
 
   @Get(':uuid')

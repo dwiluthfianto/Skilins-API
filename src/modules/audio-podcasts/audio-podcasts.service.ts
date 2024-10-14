@@ -119,7 +119,7 @@ export class AudioPodcastsService {
         title: audio.title,
         description: audio.description,
         subjects: audio.subjects,
-        create_at: audio.created_at,
+        created_at: audio.created_at,
         updated_at: audio.updated_at,
         category: audio.category.name,
         creator: audio.AudioPodcasts[0].creator.name,
@@ -142,17 +142,84 @@ export class AudioPodcastsService {
           liked_by: like.liked_by,
         })),
       })),
-      totalPage: total,
+      totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
     };
   }
-  async findLatest() {
+  async findByCategory(page: number, limit: number, category: string) {
+    const audios = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: {
+        type: 'AudioPodcast',
+        category: {
+          name: {
+            equals: category,
+            mode: 'insensitive',
+          },
+        },
+      },
+      include: {
+        category: true,
+        tags: true,
+        likes: true,
+        comments: true,
+        AudioPodcasts: {
+          include: {
+            creator: true,
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.audioPodcasts.count();
+
+    return {
+      status: 'success',
+      data: audios?.map((audio) => ({
+        uuid: audio.uuid,
+        thumbnail: audio.thumbnail,
+        title: audio.title,
+        description: audio.description,
+        subjects: audio.subjects,
+        created_at: audio.created_at,
+        updated_at: audio.updated_at,
+        category: audio.category.name,
+        creator: audio.AudioPodcasts[0].creator.name,
+        duration: audio.AudioPodcasts[0].duration,
+        file_url: audio.AudioPodcasts[0].file_url,
+        tags: audio.tags?.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: audio.comments?.map((comment) => ({
+          uuid: comment.uuid,
+          content: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: audio.likes?.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+  async findLatest(page: number, limit: number, week: number) {
     const currentDate = new Date();
     const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(currentDate.getDate() - 7);
+    const weeks = week * 7;
+
+    oneWeekAgo.setDate(currentDate.getDate() - weeks);
     const audios = await this.prisma.contents.findMany({
-      take: 10,
+      skip: (page - 1) * limit,
+      take: limit,
       where: {
         type: 'AudioPodcast',
         created_at: {
@@ -173,6 +240,8 @@ export class AudioPodcastsService {
       },
     });
 
+    const total = await this.prisma.audioPodcasts.count();
+
     return {
       status: 'success',
       data: audios?.map((audio) => ({
@@ -181,7 +250,7 @@ export class AudioPodcastsService {
         title: audio.title,
         description: audio.description,
         subjects: audio.subjects,
-        create_at: audio.created_at,
+        created_at: audio.created_at,
         updated_at: audio.updated_at,
         category: audio.category.name,
         creator: audio.AudioPodcasts[0].creator.name,
@@ -204,6 +273,9 @@ export class AudioPodcastsService {
           liked_by: like.liked_by,
         })),
       })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 
@@ -230,7 +302,7 @@ export class AudioPodcastsService {
         title: audio.title,
         description: audio.description,
         subjects: audio.subjects,
-        create_at: audio.created_at,
+        created_at: audio.created_at,
         updated_at: audio.updated_at,
         category: audio.category.name,
         creator: audio.AudioPodcasts[0].creator.name,

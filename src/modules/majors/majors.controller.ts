@@ -147,16 +147,20 @@ export class MajorsController {
 
     if (major.status === 'success') {
       const isExist = await this.majorsService.findOne(uuid);
+
       if (files.avatar_url && files.avatar_url.length > 0) {
         const avatarFilename = isExist.data.avatar_url.split('/').pop();
+
         const { success, error } = await this.supabaseService.updateFile(
           `${ContentFileEnum.avatar}${avatarFilename}`,
           files.avatar_url[0],
         );
+
         if (!success) {
           throw new Error(`Failed to update avatar: ${error}`);
         }
       }
+
       if (files.image_url && files.image_url.length > 0) {
         const imageFilename = isExist.data.image_url.split('/').pop();
         const { success, error } = await this.supabaseService.updateFile(

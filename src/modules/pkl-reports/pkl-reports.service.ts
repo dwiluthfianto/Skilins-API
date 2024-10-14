@@ -93,8 +93,10 @@ export class PklReportsService {
     };
   }
 
-  async findAll() {
+  async findAll(page: number, limit: number) {
     const reports = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
       where: { type: 'PklReport' },
       include: {
         category: true,
@@ -112,7 +114,7 @@ export class PklReportsService {
         },
       },
     });
-
+    const total = await this.prisma.pklReports.count();
     return {
       status: 'success',
       data: reports.map((report) => ({
@@ -121,7 +123,7 @@ export class PklReportsService {
         title: report.title,
         description: report.description,
         subjects: report.subjects,
-        create_at: report.created_at,
+        created_at: report.created_at,
         updated_at: report.updated_at,
         category: report.category.name,
         author: report.PklReports[0].author.name,
@@ -146,6 +148,78 @@ export class PklReportsService {
           liked_by: like.liked_by,
         })),
       })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+  async findLatest(page: number, limit: number, days: number) {
+    const currentDate = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(currentDate.getDate() - days);
+    const reports = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: {
+        type: 'PklReport',
+        created_at: {
+          gte: oneWeekAgo,
+          lte: currentDate,
+        },
+      },
+      include: {
+        category: true,
+        tags: true,
+        likes: true,
+        comments: true,
+        PklReports: {
+          include: {
+            author: {
+              include: {
+                major: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const total = await this.prisma.pklReports.count();
+    return {
+      status: 'success',
+      data: reports.map((report) => ({
+        uuid: report.uuid,
+        thumbnail: report.thumbnail,
+        title: report.title,
+        description: report.description,
+        subjects: report.subjects,
+        created_at: report.created_at,
+        updated_at: report.updated_at,
+        category: report.category.name,
+        author: report.PklReports[0].author.name,
+        major: report.PklReports[0].author.major.name,
+        pages: report.PklReports[0].pages,
+        file_url: report.PklReports[0].file_url,
+        published_at: report.PklReports[0].published_at,
+        tags: report.tags.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: report.comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: report.likes.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 
@@ -178,7 +252,7 @@ export class PklReportsService {
         title: report.title,
         description: report.description,
         subjects: report.subjects,
-        create_at: report.created_at,
+        created_at: report.created_at,
         updated_at: report.updated_at,
         category: report.category.name,
         author: report.PklReports[0].author.name,

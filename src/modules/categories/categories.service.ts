@@ -17,8 +17,10 @@ export class CategoriesService {
     const category = await this.prisma.categories.create({
       data: {
         name,
-        avatar_url,
-        description,
+        avatar_url:
+          avatar_url ||
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        description: description || 'No description available.',
       },
     });
 
@@ -68,8 +70,10 @@ export class CategoriesService {
       },
       data: {
         name,
-        avatar_url,
-        description,
+        avatar_url:
+          avatar_url ||
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        description: description || 'No description available.',
       },
     });
 
@@ -83,7 +87,6 @@ export class CategoriesService {
   }
 
   async remove(uuid: string) {
-    await this.uuidHelper.validateUuidContent(uuid);
     const category = await this.prisma.categories.delete({
       where: { uuid },
     });

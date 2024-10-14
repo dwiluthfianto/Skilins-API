@@ -128,8 +128,16 @@ export class EbooksController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
-    return this.ebooksService.findAll(page, limit);
+  findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('category') category: string,
+  ) {
+    if (!category) {
+      return this.ebooksService.findAll(page, limit);
+    } else {
+      return this.ebooksService.findByCategory(page, limit, category);
+    }
   }
 
   @Get('latest')
@@ -138,8 +146,12 @@ export class EbooksController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findLatest() {
-    return this.ebooksService.findLatest();
+  findLatest(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('week') week: number = 1,
+  ) {
+    return this.ebooksService.findLatest(page, limit, week);
   }
 
   @Get(':uuid')
@@ -173,8 +185,6 @@ export class EbooksController {
 
     if (ebook.status === 'success') {
       const isExist = await this.ebooksService.findOne(uuid);
-
-      console.log(files);
 
       if (files?.thumbnail && files.thumbnail.length > 0) {
         const thumbFilename = isExist.data.thumbnail.split('/').pop();

@@ -119,8 +119,30 @@ export class NovelsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
-    return this.novelsService.findAll(page, limit);
+  findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('category') category: string,
+  ) {
+    if (!category) {
+      return this.novelsService.findAll(page, limit);
+    } else {
+      return this.novelsService.findByCategory(page, limit, category);
+    }
+  }
+
+  @Get('latest')
+  @ApiOkResponse({
+    type: Novel,
+    isArray: true,
+  })
+  @HttpCode(HttpStatus.OK)
+  findLatest(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('week') week: number = 1,
+  ) {
+    return this.novelsService.findLatest(page, limit, week);
   }
 
   @Get(':uuid')

@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { PklReportsService } from './pkl-reports.service';
 import { CreatePklReportDto } from './dto/create-pkl-report.dto';
@@ -117,8 +118,22 @@ export class PklReportsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.pklReportsService.findAll();
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+    return this.pklReportsService.findAll(page, limit);
+  }
+
+  @Get('latest')
+  @ApiOkResponse({
+    type: PklReport,
+    isArray: true,
+  })
+  @HttpCode(HttpStatus.OK)
+  findLatest(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 25,
+    @Query('days') days: number = 7,
+  ) {
+    return this.pklReportsService.findLatest(page, limit, days);
   }
 
   @Get(':uuid')

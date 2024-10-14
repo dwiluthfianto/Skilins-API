@@ -9,7 +9,13 @@ export class TagsService {
   async create(createTagDto: CreateTagDto) {
     const { avatar_url, name, description } = createTagDto;
     const tag = await this.prisma.tags.create({
-      data: { avatar_url, name, description },
+      data: {
+        name,
+        avatar_url:
+          avatar_url ||
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        description: description || 'No description available.',
+      },
     });
 
     return {
@@ -54,7 +60,13 @@ export class TagsService {
 
     const tag = await this.prisma.tags.update({
       where: { uuid },
-      data: { avatar_url, name, description },
+      data: {
+        name,
+        avatar_url:
+          avatar_url ||
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        description: description || 'No description available.',
+      },
     });
 
     return {

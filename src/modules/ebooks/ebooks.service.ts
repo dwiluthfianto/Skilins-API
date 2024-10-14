@@ -122,7 +122,7 @@ export class EbooksService {
         title: content.title,
         description: content.description,
         subjects: content.subjects,
-        create_at: content.created_at,
+        created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Ebooks[0].author,
@@ -148,17 +148,83 @@ export class EbooksService {
           liked_by: like.liked_by,
         })),
       })),
-      totalPage: total,
+      totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
     };
   }
-  async findLatest() {
+  async findByCategory(page: number, limit: number, category: string) {
+    const contents = await this.prisma.contents.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: {
+        type: 'Ebook',
+        category: {
+          name: {
+            contains: category,
+            mode: 'insensitive',
+          },
+        },
+      },
+      include: {
+        category: true,
+        tags: true,
+        comments: true,
+        likes: true,
+        Ebooks: true,
+      },
+    });
+
+    const total = await this.prisma.ebooks.count();
+
+    return {
+      status: 'success',
+      data: contents.map((content) => ({
+        uuid: content.uuid,
+        thumbnail: content.thumbnail,
+        title: content.title,
+        description: content.description,
+        subjects: content.subjects,
+        created_at: content.created_at,
+        updated_at: content.updated_at,
+        category: content.category.name,
+        author: content.Ebooks[0].author,
+        pages: content.Ebooks[0].pages,
+        publication: content.Ebooks[0].publication,
+        file_url: content.Ebooks[0].file_url,
+        isbn: content.Ebooks[0].isbn,
+        release_date: content.Ebooks[0].release_date,
+        tags: content.tags.map((tag) => ({
+          uuid: tag.uuid,
+          name: tag.name,
+        })),
+        comments: content.comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by: comment.commented_by,
+        })),
+        likes: content.likes.map((like) => ({
+          uuid: like.uuid,
+          created_at: like.created_at,
+          liked_by: like.liked_by,
+        })),
+      })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
+  }
+
+  async findLatest(page: number, limit: number, week: number) {
     const currentDate = new Date();
     const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(currentDate.getDate() - 7);
+    const weeks = week * 7;
+    oneWeekAgo.setDate(currentDate.getDate() - weeks);
     const contents = await this.prisma.contents.findMany({
-      take: 10,
+      skip: (page - 1) * limit,
+      take: limit,
       where: {
         type: 'Ebook',
         created_at: {
@@ -178,6 +244,7 @@ export class EbooksService {
       },
     });
 
+    const total = await this.prisma.ebooks.count();
     return {
       status: 'success',
       data: contents.map((content) => ({
@@ -186,7 +253,7 @@ export class EbooksService {
         title: content.title,
         description: content.description,
         subjects: content.subjects,
-        create_at: content.created_at,
+        created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Ebooks[0].author,
@@ -212,6 +279,9 @@ export class EbooksService {
           liked_by: like.liked_by,
         })),
       })),
+      totalPages: total,
+      page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 
@@ -235,7 +305,7 @@ export class EbooksService {
         title: content.title,
         description: content.description,
         subjects: content.subjects,
-        create_at: content.created_at,
+        created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Ebooks[0].author,
