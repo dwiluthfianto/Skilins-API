@@ -125,11 +125,14 @@ export class AudioPodcastsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 25,
     @Query('category') category: string,
+    @Query('tag') tag: string,
   ) {
-    if (!category) {
-      return this.audioPodcastsService.findAll(page, limit);
-    } else {
+    if (category) {
       return this.audioPodcastsService.findByCategory(page, limit, category);
+    } else if (tag) {
+      return this.audioPodcastsService.findByTag(page, limit, tag);
+    } else {
+      return this.audioPodcastsService.findAll(page, limit);
     }
   }
 

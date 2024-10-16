@@ -87,11 +87,11 @@ export class TagsController {
     return this.tagsService.findAll();
   }
 
-  @Get(':uuid')
+  @Get(':name')
   @ApiOkResponse({ type: Tag })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.tagsService.findOne(uuid);
+  findOne(@Param('name') name: string) {
+    return this.tagsService.findOne(name);
   }
 
   @Patch(':uuid')

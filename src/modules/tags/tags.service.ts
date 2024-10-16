@@ -40,8 +40,8 @@ export class TagsService {
     };
   }
 
-  async findOne(uuid: string) {
-    const tag = await this.prisma.tags.findUniqueOrThrow({ where: { uuid } });
+  async findOne(name: string) {
+    const tag = await this.prisma.tags.findUniqueOrThrow({ where: { name } });
     return {
       status: 'success',
       data: {

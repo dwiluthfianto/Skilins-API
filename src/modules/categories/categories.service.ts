@@ -46,9 +46,9 @@ export class CategoriesService {
     };
   }
 
-  async findOne(uuid: string) {
+  async findOne(name: string) {
     const category = await this.prisma.categories.findUniqueOrThrow({
-      where: { uuid },
+      where: { name },
     });
     return {
       status: 'success',

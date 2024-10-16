@@ -19,6 +19,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PassportModule } from '@nestjs/passport';
     ConfigModule.forRoot(),
     PassportModule,
     SupabaseModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [PrismaService],

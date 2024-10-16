@@ -83,11 +83,11 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
-  @Get(':uuid')
+  @Get(':name')
   @ApiOkResponse({ type: Category })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.categoriesService.findOne(uuid);
+  findOne(@Param('name') name: string) {
+    return this.categoriesService.findOne(name);
   }
 
   @Patch(':uuid')
