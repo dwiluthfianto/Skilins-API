@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { UpdateLikeDto } from './dto/update-like.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -8,21 +8,13 @@ export class LikesService {
   async likeContent(uuid: string, updateLikeDto: UpdateLikeDto) {
     const { liked_by } = updateLikeDto;
 
-    const content = await this.prisma.contents.findUnique({
+    const content = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid },
     });
 
-    if (!content) {
-      throw new NotFoundException(`Content with UUID ${uuid} not found`);
-    }
-
-    const user = await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUniqueOrThrow({
       where: { uuid: liked_by },
     });
-
-    if (!user) {
-      throw new NotFoundException(`User with UUID ${liked_by} not found`);
-    }
 
     const like = await this.prisma.likes.create({
       data: {
@@ -39,38 +31,46 @@ export class LikesService {
       },
     };
   }
-
-  async unlikeContent(content_uuid: string, liked_by_uuid: string) {
-    const content = await this.prisma.contents.findUnique({
-      where: { uuid: content_uuid },
+  async isLiked(uuid: string, liked_by: string) {
+    const content = await this.prisma.contents.findUniqueOrThrow({
+      where: { uuid },
     });
 
-    if (!content) {
-      throw new NotFoundException(
-        `Content with UUID ${content_uuid} not found`,
-      );
-    }
-
-    const user = await this.prisma.users.findUnique({
-      where: { uuid: liked_by_uuid },
+    const user = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid: liked_by },
     });
 
-    if (!user) {
-      throw new NotFoundException(`User with UUID ${liked_by_uuid} not found`);
-    }
-
-    const like = await this.prisma.likes.findFirst({
+    await this.prisma.likes.findFirstOrThrow({
       where: {
         content_id: content.id,
         liked_by: user.id,
       },
     });
 
-    if (!like) {
-      throw new NotFoundException(
-        `Like by user ${liked_by_uuid} on content ${content_uuid} not found`,
-      );
-    }
+    return {
+      status: 'success',
+      message: 'Content liked successfully!',
+      data: {
+        liked: true,
+      },
+    };
+  }
+
+  async unlikeContent(content_uuid: string, liked_by_uuid: string) {
+    const content = await this.prisma.contents.findUniqueOrThrow({
+      where: { uuid: content_uuid },
+    });
+
+    const user = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid: liked_by_uuid },
+    });
+
+    const like = await this.prisma.likes.findFirstOrThrow({
+      where: {
+        content_id: content.id,
+        liked_by: user.id,
+      },
+    });
 
     await this.prisma.likes.delete({
       where: { id: like.id }, // Hapus like berdasarkan ID

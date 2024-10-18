@@ -20,6 +20,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -43,6 +44,12 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     PassportModule,
     SupabaseModule,
     AnalyticsModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
   ],
   controllers: [],
   providers: [PrismaService],

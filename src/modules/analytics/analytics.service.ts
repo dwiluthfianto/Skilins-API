@@ -201,34 +201,124 @@ export class AnalyticsService {
   async getPklReportsStats() {
     const currentDate = new Date();
 
-    // Array untuk menyimpan hasil data setiap bulan
-    const monthlyStats = [];
+    // Dapatkan tanggal 6 bulan yang lalu
+    const sixMonthsAgo = subMonths(currentDate, 5); // 5 bulan + bulan ini = 6 bulan
 
-    // Loop melalui setiap bulan dari 6 bulan yang lalu hingga bulan ini
+    // Menggunakan groupBy untuk mengelompokkan data berdasarkan bulan
+    const monthlyReports = await this.prisma.contents.groupBy({
+      by: ['created_at'],
+      where: {
+        type: 'PklReport',
+        created_at: {
+          gte: startOfMonth(sixMonthsAgo), // Mulai dari awal 6 bulan yang lalu
+          lte: endOfMonth(currentDate), // Hingga akhir bulan ini
+        },
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Mengubah hasil groupBy untuk memformat data per bulan
+    const monthlyStats = [];
     for (let i = 0; i < 6; i++) {
       const targetMonth = subMonths(currentDate, i);
       const startOfTargetMonth = startOfMonth(targetMonth);
       const endOfTargetMonth = endOfMonth(targetMonth);
 
-      const reportCount = await this.prisma.contents.count({
-        where: {
-          type: 'PklReport',
-          created_at: {
-            gte: startOfTargetMonth,
-            lte: endOfTargetMonth,
-          },
-        },
+      // Temukan laporan di bulan target
+      const reportsInMonth = monthlyReports.filter((report) => {
+        const reportDate = new Date(report.created_at);
+        return (
+          reportDate >= startOfTargetMonth && reportDate <= endOfTargetMonth
+        );
       });
 
-      // Push hasil ke dalam array
+      // Hitung jumlah laporan di bulan tersebut
+      const reportCount = reportsInMonth.reduce(
+        (acc, report) => acc + report._count._all,
+        0,
+      );
+
+      // Masukkan data ke dalam array
       monthlyStats.unshift({
-        month: targetMonth.toLocaleString('default', { month: 'long' }), // Nama bulan
+        month: targetMonth.toLocaleString('default', { month: 'long' }),
         count: reportCount,
       });
     }
 
     return {
       lastSixMonthsReports: monthlyStats,
+    };
+  }
+
+  async getFeedbackStats() {
+    const currentDate = new Date();
+
+    const commentTotal = await this.prisma.comments.count();
+    const likeTotal = await this.prisma.likes.count();
+
+    // Dapatkan semua data comment dan like selama 3 bulan terakhir
+    const commentsData = await this.prisma.comments.groupBy({
+      by: ['created_at'],
+      _count: true,
+      where: {
+        created_at: {
+          gte: subDays(currentDate, 90), // 90 hari terakhir
+          lte: currentDate,
+        },
+      },
+    });
+
+    const likesData = await this.prisma.likes.groupBy({
+      by: ['created_at'],
+      _count: true,
+      where: {
+        created_at: {
+          gte: subDays(currentDate, 90),
+          lte: currentDate,
+        },
+      },
+    });
+
+    // Buat map untuk agregasi berdasarkan tanggal
+    const commentMap = new Map();
+    const likeMap = new Map();
+
+    // Agregasi comments berdasarkan tanggal
+    commentsData.forEach((comment) => {
+      const date = comment.created_at.toISOString().split('T')[0]; // format YYYY-MM-DD
+      const currentCount = commentMap.get(date) || 0;
+      commentMap.set(date, currentCount + comment._count);
+    });
+
+    // Agregasi likes berdasarkan tanggal
+    likesData.forEach((like) => {
+      const date = like.created_at.toISOString().split('T')[0];
+      const currentCount = likeMap.get(date) || 0;
+      likeMap.set(date, currentCount + like._count);
+    });
+
+    // Format hasil akhir sebagai array untuk frontend
+    const dailyCommentStats = Array.from(commentMap.entries()).map(
+      ([date, count]) => ({
+        date,
+        count,
+      }),
+    );
+
+    const dailyLikeStats = Array.from(likeMap.entries()).map(
+      ([date, count]) => ({
+        date,
+        count,
+      }),
+    );
+
+    return {
+      lastThreeMonthsComment: dailyCommentStats,
+      lastThreeMonthsLike: dailyLikeStats,
+      commentTotal,
+      likeTotal,
     };
   }
 }

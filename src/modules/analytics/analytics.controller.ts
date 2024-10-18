@@ -1,9 +1,14 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
 
 @ApiTags('Analytics')
 @Controller({ path: 'api/v1/analytics', version: '1' })
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
@@ -25,5 +30,10 @@ export class AnalyticsController {
   @Get('/pkl-reports')
   async getPklReportsStats() {
     return this.analyticsService.getPklReportsStats();
+  }
+
+  @Get('/feedback-stats')
+  async getFeedbackStats() {
+    return this.analyticsService.getFeedbackStats();
   }
 }

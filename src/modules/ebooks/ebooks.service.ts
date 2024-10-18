@@ -106,7 +106,17 @@ export class EbooksService {
       include: {
         category: true,
         tags: true,
-        comments: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         likes: true,
         Ebooks: true,
       },
@@ -140,7 +150,9 @@ export class EbooksService {
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         likes: content.likes.map((like) => ({
           uuid: like.uuid,
@@ -169,7 +181,17 @@ export class EbooksService {
       include: {
         category: true,
         tags: true,
-        comments: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         likes: true,
         Ebooks: true,
       },
@@ -203,7 +225,9 @@ export class EbooksService {
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         likes: content.likes.map((like) => ({
           uuid: like.uuid,
@@ -235,7 +259,17 @@ export class EbooksService {
       include: {
         category: true,
         tags: true,
-        comments: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         likes: true,
         Ebooks: true,
       },
@@ -269,7 +303,9 @@ export class EbooksService {
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         likes: content.likes.map((like) => ({
           uuid: like.uuid,
@@ -304,7 +340,17 @@ export class EbooksService {
       include: {
         category: true,
         tags: true,
-        comments: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         likes: true,
         Ebooks: true,
       },
@@ -337,7 +383,9 @@ export class EbooksService {
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         likes: content.likes.map((like) => ({
           uuid: like.uuid,
@@ -357,7 +405,17 @@ export class EbooksService {
       include: {
         category: true,
         tags: true,
-        comments: true,
+        comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         likes: true,
         Ebooks: true,
       },
@@ -389,7 +447,9 @@ export class EbooksService {
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         likes: content.likes.map((like) => ({
           uuid: like.uuid,

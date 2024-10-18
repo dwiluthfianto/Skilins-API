@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
+import * as csurf from 'csurf';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -30,6 +31,7 @@ async function bootstrap() {
     credentials: true,
   });
   app.use(cookieParser());
+  // app.use(csurf({ cookie: true }));
   await app.listen(8000);
 }
 bootstrap();
