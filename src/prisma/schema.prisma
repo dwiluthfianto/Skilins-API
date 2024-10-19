@@ -15,21 +15,23 @@ datasource db {
 }
 
 model Users {
-  id           Int        @id @default(autoincrement())
-  uuid         String     @unique @default(uuid())
-  username     String     @unique
-  email        String     @unique
-  full_name    String
-  profile_url  String?
-  password     String
-  refreshToken String?    @unique
-  created_at   DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
-  roles_id     Int
-  roles        Roles      @relation(fields: [roles_id], references: [id], onDelete: Restrict)
-  likes        Likes[]
-  comments     Comments[]
-  Blogs        Blogs[]
+  id                 Int        @id @default(autoincrement())
+  uuid               String     @unique @default(uuid())
+  email              String     @unique
+  full_name          String
+  profile_url        String?
+  password           String
+  emailVerified      Boolean    @default(false)
+  resetPasswordToken String?
+  resetTokenExpires  DateTime?
+  refreshToken       String?    @unique
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+  roles_id           Int
+  roles              Roles      @relation(fields: [roles_id], references: [id], onDelete: Restrict)
+  likes              Likes[]
+  comments           Comments[]
+  Blogs              Blogs[]
 }
 
 model Roles {

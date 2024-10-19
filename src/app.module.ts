@@ -21,6 +21,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { MailerConfigModule } from './modules/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
         limit: 10,
       },
     ]),
+    MailerConfigModule,
   ],
   controllers: [],
   providers: [PrismaService],

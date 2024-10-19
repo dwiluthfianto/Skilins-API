@@ -8,22 +8,19 @@ import {
   Req,
   UseGuards,
   Get,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { Request, Response } from 'express';
-import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
 @Controller({ path: 'api/v1/auth', version: '1' })
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   async login(
@@ -55,6 +52,7 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   async getLoginUser(@Req() req: Request) {
     const user = req.user;
+
     return this.authService.getLoginUser(user['sub']);
   }
 
@@ -108,5 +106,31 @@ export class AuthController {
     });
 
     return res.json({ status: 'success', message: 'Logged out successfully!' });
+  }
+
+  @Post('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.sendPasswordResetEmail(email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Query('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.authService.resetPassword(token, newPassword);
+  }
+
+  @Post('change-email')
+  async changeEmail(
+    @Body('uuid') uuid: string,
+    @Body('newEmail') newEmail: string,
+  ) {
+    return this.authService.changeEmail(uuid, newEmail);
   }
 }

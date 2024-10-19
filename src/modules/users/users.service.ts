@@ -18,9 +18,9 @@ export class UsersService {
       data: {
         uuid: user.uuid,
         profile: user.profile_url,
-        username: user.username,
         email: user.email,
         full_name: user.full_name,
+        email_verified: user.emailVerified,
         role: user.roles.name,
       },
     };

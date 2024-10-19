@@ -11,16 +11,19 @@ import { JwtStrategy } from 'src/common/strategies/jwt.strategy';
 
 @Module({
   imports: [
-    UsersModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PassportModule.register({ defaultStrategy: 'jwt' }), // Passport strategies
+    UsersModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         return {
-          secret: configService.get<string>('JWT_SECRET'),
+          secret: configService.get<string>('AUTH_JWT_SECRET'),
+          signOptions: {
+            expiresIn: configService.get<string>('AUTH_JWT_TOKEN_EXPIRES_IN'),
+          },
         };
       },
       inject: [ConfigService],
@@ -29,7 +32,40 @@ import { JwtStrategy } from 'src/common/strategies/jwt.strategy';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         return {
-          secret: configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+          secret: configService.get<string>('AUTH_REFRESH_SECRET'),
+          signOptions: {
+            expiresIn: configService.get<string>(
+              'AUTH_REFRESH_TOKEN_EXPIRES_IN',
+            ),
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        return {
+          secret: configService.get<string>('AUTH_FORGOT_SECRET'),
+          signOptions: {
+            expiresIn: configService.get<string>(
+              'AUTH_FORGOT_TOKEN_EXPIRES_IN',
+            ),
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        return {
+          secret: configService.get<string>('AUTH_CONFIRM_EMAIL_SECRET'),
+          signOptions: {
+            expiresIn: configService.get<string>(
+              'AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN',
+            ),
+          },
         };
       },
       inject: [ConfigService],
