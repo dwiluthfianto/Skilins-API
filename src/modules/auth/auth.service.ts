@@ -7,6 +7,9 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
+import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
+import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
+import ms from 'ms';
 
 @Injectable()
 export class AuthService {
@@ -76,7 +79,8 @@ export class AuthService {
   }
 
   // Mengirim email untuk reset password
-  async sendPasswordResetEmail(email: string) {
+  async sendPasswordResetEmail(authForgotPasswordDto: AuthForgotPasswordDto) {
+    const { email } = authForgotPasswordDto;
     const user = await this.prisma.users.findUniqueOrThrow({
       where: { email },
       include: { roles: true },
@@ -85,13 +89,28 @@ export class AuthService {
     const token = this.jwtService.sign(
       { email: user.email, sub: user.uuid, role: user.roles.name },
       {
-        secret: this.configService.get<string>('AUTH_FORGOT_SECRET'), // Menggunakan secret
+        secret: this.configService.get<string>('AUTH_FORGOT_SECRET'),
         expiresIn: this.configService.get<string>(
           'AUTH_FORGOT_TOKEN_EXPIRES_IN',
         ),
       },
     );
-    const resetUrl = `${process.env.FRONTEND_DOMAIN}/reset-password?token=${token}`;
+
+    const resetTokenExpires = new Date(
+      Date.now() +
+        ms(this.configService.get<string>('AUTH_FORGOT_TOKEN_EXPIRES_IN')),
+    );
+
+    const hashedToken = await bcrypt.hash(token, 10);
+    await this.prisma.users.update({
+      where: { email: user.email },
+      data: {
+        resetPasswordToken: hashedToken,
+        resetTokenExpires,
+      },
+    });
+
+    const resetUrl = `${process.env.FRONTEND_DOMAIN}/auth/reset-password?token=${token}`;
 
     await this.mailerService.sendMail({
       to: user.email,
@@ -105,7 +124,8 @@ export class AuthService {
   }
 
   // Reset password berdasarkan token
-  async resetPassword(token: string, newPassword: string) {
+  async resetPassword(authResetPasswordDto: AuthResetPasswordDto) {
+    const { password: newPassword, token } = authResetPasswordDto;
     try {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('AUTH_FORGOT_SECRET'),
@@ -118,10 +138,19 @@ export class AuthService {
         throw new UnauthorizedException('Token has expired');
       }
 
+      const isTokenValid = await bcrypt.compare(token, user.resetPasswordToken);
+      if (!isTokenValid) {
+        throw new UnauthorizedException('Invalid token');
+      }
+
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await this.prisma.users.update({
         where: { id: user.id },
-        data: { password: hashedPassword },
+        data: {
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetTokenExpires: null,
+        },
       });
     } catch (e) {
       throw new UnauthorizedException('Invalid or expired token');

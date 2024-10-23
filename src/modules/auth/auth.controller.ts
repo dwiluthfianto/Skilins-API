@@ -16,6 +16,8 @@ import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
+import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 
 @ApiTags('Auth')
 @Controller({ path: 'api/v1/auth', version: '1' })
@@ -23,6 +25,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @HttpCode(200)
   async login(
     @Body() authEmailLoginDto: AuthEmailLoginDto,
     @Res() res: Response,
@@ -114,16 +117,13 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body('email') email: string) {
-    return this.authService.sendPasswordResetEmail(email);
+  async forgotPassword(@Body() authForgotPasswordDto: AuthForgotPasswordDto) {
+    return this.authService.sendPasswordResetEmail(authForgotPasswordDto);
   }
 
   @Post('reset-password')
-  async resetPassword(
-    @Query('token') token: string,
-    @Body('newPassword') newPassword: string,
-  ) {
-    return this.authService.resetPassword(token, newPassword);
+  async resetPassword(@Body() authResetPasswordDto: AuthResetPasswordDto) {
+    return this.authService.resetPassword(authResetPasswordDto);
   }
 
   @Post('change-email')
