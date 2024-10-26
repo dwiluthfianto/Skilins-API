@@ -22,6 +22,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MailerConfigModule } from './modules/mailer/mailer.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { MailerConfigModule } from './modules/mailer/mailer.module';
       },
     ]),
     MailerConfigModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [PrismaService],

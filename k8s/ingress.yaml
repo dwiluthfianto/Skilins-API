@@ -1,18 +1,25 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: skilins-api-ingress
+  name: skilins-external
+  labels:
+    app: skilins-api
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: 'skilins-static-ip' # Nama IP Statis yang Anda buat
+    kubernetes.io/ingress.global-static-ip-name: skilins-ip
 spec:
+  defaultBackend:
+    service:
+      name: skilins-api
+      port:
+        number: 8000
   rules:
-    - host: skilins.online # Ganti dengan domain Anda
+    - host: api.skilins.online
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: skilins-api # Nama service aplikasi Anda
+                name: skilins-api
                 port:
                   number: 8000

@@ -12,13 +12,13 @@ import { join } from 'path';
         ignoreTLS: process.env.MAIL_IGNORE_TLS === 'true',
         secure: process.env.MAIL_SECURE === 'true',
         requireTLS: process.env.MAIL_REQUIRE_TLS === 'true',
-        // auth: {
-        //   user: process.env.MAIL_USER,
-        //   pass: process.env.MAIL_PASSWORD,
-        // },
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASSWORD,
+        },
       },
       defaults: {
-        from: '"No Reply" <noreply@example.com>',
+        from: `"No Reply" <${process.env.MAIL_USER}>`,
       },
       template: {
         dir: join(process.cwd(), 'src', 'modules', 'auth', 'templates'),

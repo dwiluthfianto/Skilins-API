@@ -6,7 +6,7 @@ spec:
   selector:
     matchLabels:
       app: skilins-api
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
@@ -20,7 +20,8 @@ spec:
               memory: '128Mi'
               cpu: '500m'
           ports:
-            - containerPort: 3000
+            - name: http-port
+              containerPort: 8000
           envFrom:
             - configMapRef:
                 name: api-config
