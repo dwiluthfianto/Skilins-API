@@ -18,7 +18,7 @@ import { join } from 'path';
         },
       },
       defaults: {
-        from: `"No Reply" <${process.env.MAIL_USER}>`,
+        from: `"No Reply" <${process.env.MAIL_DEFAULT_EMAIL}>`,
       },
       template: {
         dir: join(process.cwd(), 'src', 'modules', 'auth', 'templates'),

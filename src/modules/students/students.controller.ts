@@ -27,6 +27,8 @@ import { ContentFileEnum } from '../contents/content-file.enum';
 
 @ApiTags('Student')
 @Controller({ path: 'api/v1/students', version: '1' })
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin')
 export class StudentsController {
   constructor(
     private readonly studentsService: StudentsService,
@@ -34,8 +36,6 @@ export class StudentsController {
   ) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
   @ApiCreatedResponse({
     type: Student,
   })
@@ -99,8 +99,6 @@ export class StudentsController {
   }
 
   @Patch(':uuid')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
   @ApiOkResponse({
     type: Student,
   })
@@ -134,8 +132,6 @@ export class StudentsController {
     type: Student,
   })
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.studentsService.findOne(uuid);
     const thumbFilename = isExist.data.image_url
