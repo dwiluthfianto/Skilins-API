@@ -26,6 +26,9 @@ COPY package*.json ./
 COPY --from=development /usr/src/app/dist ./dist
 COPY --from=development /usr/src/app/src/prisma/schema.prisma ./src/prisma/schema.prisma
 
+# Copy email templates folder
+COPY --from=development /usr/src/app/src/modules/auth/templates ./src/modules/auth/templates
+
 # Install bcrypt and other dependencies
 RUN npm install bcrypt --build-from-source 
 RUN npm install --only=production

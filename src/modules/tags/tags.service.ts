@@ -52,6 +52,18 @@ export class TagsService {
       },
     };
   }
+  async findOneByUuid(uuid: string) {
+    const tag = await this.prisma.tags.findUniqueOrThrow({ where: { uuid } });
+    return {
+      status: 'success',
+      data: {
+        uuid: tag.uuid,
+        avatar_url: tag.avatar_url,
+        name: tag.name,
+        description: tag.description,
+      },
+    };
+  }
 
   async update(uuid: string, updateTagDto: UpdateTagDto) {
     const { avatar_url, name, description } = updateTagDto;

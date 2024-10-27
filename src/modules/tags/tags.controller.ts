@@ -129,7 +129,7 @@ export class TagsController {
   @ApiOkResponse({ type: Tag })
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
-    const isExist = await this.tagsService.findOne(uuid);
+    const isExist = await this.tagsService.findOneByUuid(uuid);
     const thumbFilename = isExist?.data?.avatar_url
       ? isExist.data.avatar_url.split('/').pop().replace(/%20/g, ' ')
       : null;
