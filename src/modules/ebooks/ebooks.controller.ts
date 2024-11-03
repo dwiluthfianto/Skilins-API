@@ -40,7 +40,7 @@ export class EbooksController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @ApiCreatedResponse({
     type: Ebook,
   })
@@ -132,12 +132,12 @@ export class EbooksController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 25,
     @Query('category') category: string,
-    @Query('tag') tag: string,
+    @Query('genre') genre: string,
   ) {
     if (category) {
       return this.ebooksService.findByCategory(page, limit, category);
-    } else if (tag) {
-      return this.ebooksService.findByTag(page, limit, tag);
+    } else if (genre) {
+      return this.ebooksService.findByGenre(page, limit, genre);
     } else {
       return this.ebooksService.findAll(page, limit);
     }
@@ -168,7 +168,7 @@ export class EbooksController {
 
   @Patch(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @ApiOkResponse({
     type: Ebook,
   })
@@ -221,7 +221,7 @@ export class EbooksController {
 
   @Delete(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @ApiOkResponse({
     type: Ebook,
   })

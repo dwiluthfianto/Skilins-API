@@ -1,19 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { SexType } from '@prisma/client';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateStudentDto {
-  @ApiProperty({ example: 'https://example.com/siswa.jpg', type: String })
-  @IsOptional()
-  image_url?: string;
-
   @ApiProperty({ example: '123456', type: String })
   @IsNotEmpty()
+  @IsString()
   nis: string;
 
   @ApiProperty({ example: 'Jane Doe', type: String })
   @IsNotEmpty()
+  @IsString()
   name: string;
 
   @ApiProperty({
@@ -21,10 +18,12 @@ export class CreateStudentDto {
     type: String,
   })
   @IsNotEmpty()
+  @IsString()
   major: string;
 
   @ApiProperty({ example: 'Bogor', type: String })
   @IsNotEmpty()
+  @IsString()
   birthplace: string;
 
   @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
@@ -35,9 +34,11 @@ export class CreateStudentDto {
   @IsNotEmpty()
   sex: SexType;
 
-  @ApiProperty({ example: 'true', type: Boolean })
-  @Transform(({ value }) => Boolean(value))
-  @IsBoolean()
+  @ApiProperty({
+    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    type: String,
+  })
   @IsNotEmpty()
-  status: boolean = true;
+  @IsString()
+  user_uuid: string;
 }

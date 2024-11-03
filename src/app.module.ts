@@ -4,15 +4,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { EbooksModule } from './modules/ebooks/ebooks.module';
 import { CategoriesModule } from './modules/categories/categories.module';
-import { NovelsModule } from './modules/novels/novels.module';
 import { AudioPodcastsModule } from './modules/audio-podcasts/audio-podcasts.module';
 import { VideoPodcastsModule } from './modules/video-podcasts/video-podcasts.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
-import { PklReportsModule } from './modules/pkl-reports/pkl-reports.module';
 import { StudentsModule } from './modules/students/students.module';
 import { MajorsModule } from './modules/majors/majors.module';
-import { TagsModule } from './modules/tags/tags.module';
-import { LikesModule } from './modules/likes/likes.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,21 +19,22 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MailerConfigModule } from './modules/mailer/mailer.module';
 import { HealthModule } from './modules/health/health.module';
+import { GenresModule } from './modules/genres/genres.module';
+import { RatingsModule } from './modules/ratings/ratings.module';
+import { ContentsModule } from './modules/contents/contents.module';
+import { CompetitionsModule } from './modules/competitions/competitions.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     PrismaModule,
     EbooksModule,
     CategoriesModule,
-    NovelsModule,
     AudioPodcastsModule,
     VideoPodcastsModule,
     BlogsModule,
-    PklReportsModule,
     StudentsModule,
     MajorsModule,
-    TagsModule,
-    LikesModule,
     CommentsModule,
     SupabaseModule,
     AuthModule,
@@ -52,8 +49,13 @@ import { HealthModule } from './modules/health/health.module';
         limit: 10,
       },
     ]),
+    ScheduleModule.forRoot(),
     MailerConfigModule,
     HealthModule,
+    GenresModule,
+    RatingsModule,
+    ContentsModule,
+    CompetitionsModule,
   ],
   controllers: [],
   providers: [PrismaService],

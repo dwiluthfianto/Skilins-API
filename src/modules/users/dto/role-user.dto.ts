@@ -1,12 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsUUID } from 'class-validator';
+import { RoleType } from '@prisma/client';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class RoleUserDto {
   @ApiProperty()
   @IsUUID()
   uuid: string;
 
-  @ApiProperty()
-  @IsNumber()
-  role: string;
+  @ApiProperty({ example: 'User', enum: RoleType, default: RoleType.User })
+  @IsNotEmpty()
+  role: RoleType;
 }

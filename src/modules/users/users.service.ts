@@ -10,7 +10,7 @@ export class UsersService {
   async findOne(uuid: string) {
     const user = await this.prisma.users.findUniqueOrThrow({
       where: { uuid },
-      include: { roles: true }, // Include role information
+      include: { roles: true },
     });
 
     return {
@@ -23,6 +23,20 @@ export class UsersService {
         email_verified: user.emailVerified,
         role: user.roles.name,
       },
+    };
+  }
+  async removeUser(uuid: string) {
+    const user = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid },
+    });
+
+    await this.prisma.users.delete({
+      where: { uuid: user.uuid },
+    });
+
+    return {
+      status: 'success',
+      message: 'Account removed successfully!',
     };
   }
 
@@ -39,11 +53,9 @@ export class UsersService {
     });
   }
 
-  // Update the refresh token in the database
   async updateRefreshToken(uuid: string, refreshToken: string) {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
-    // Update the user's refresh token in the database
     await this.prisma.users.update({
       where: { uuid },
       data: {
@@ -52,12 +64,20 @@ export class UsersService {
     });
   }
 
-  // Clear refresh token (when logging out)
   async clearRefreshToken(uuid: string): Promise<void> {
     await this.prisma.users.update({
       where: { uuid },
       data: {
-        refreshToken: null, // Clear the refresh token
+        refreshToken: null,
+      },
+    });
+  }
+
+  async updateProfile(uuid: string, profile: string): Promise<void> {
+    await this.prisma.users.update({
+      where: { uuid },
+      data: {
+        profile_url: profile,
       },
     });
   }

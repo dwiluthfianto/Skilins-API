@@ -1,17 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 model Users {
@@ -29,27 +23,38 @@ model Users {
   updated_at         DateTime   @updatedAt
   roles_id           Int
   roles              Roles      @relation(fields: [roles_id], references: [id], onDelete: Restrict)
-  likes              Likes[]
-  comments           Comments[]
+  Ratings            Ratings[]
+  Comments           Comments[]
   Blogs              Blogs[]
+  Judges             Judges[]
+  Students           Students[]
+}
+
+enum RoleType {
+  Admin
+  Student
+  User
+  Staff
+  Judge
 }
 
 model Roles {
-  id    Int     @id @default(autoincrement())
-  uuid  String  @unique @default(uuid())
-  name  String  @unique
+  id    Int      @id @default(autoincrement())
+  uuid  String   @unique @default(uuid())
+  name  RoleType @unique @default(User)
   users Users[]
 }
 
-model Likes {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
-  content_id Int
-  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
-  liked_by   Int
-  user       Users    @relation(fields: [liked_by], references: [id], onDelete: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+model Ratings {
+  id           Int      @id @default(autoincrement())
+  uuid         String   @unique @default(uuid())
+  content_id   Int
+  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  rating_by    Int
+  user         Users    @relation(fields: [rating_by], references: [id], onDelete: Cascade)
+  rating_value Int
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 }
 
 model Comments {
@@ -68,38 +73,41 @@ enum ContentType {
   Ebook
   VideoPodcast
   AudioPodcast
-  Novel
-  PklReport
+  Story
+  Prakerin
   Blog
 }
 
+enum ContentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Contents {
-  id          Int         @id @default(autoincrement())
-  uuid        String      @unique @default(uuid())
-  type        ContentType // Ebook, Video Podcast, Audio Podcast, etc.
-  title       String
-  thumbnail   String
-  description String?
-  subjects    String[]
-  created_at  DateTime    @default(now())
-  updated_at  DateTime    @updatedAt
-  category_id Int
-  category    Categories  @relation(fields: [category_id], references: [id], onDelete: Restrict)
-  tags        Tags[]
-  comments    Comments[]
-  likes       Likes[]
-
+  id            Int             @id @default(autoincrement())
+  uuid          String          @unique @default(uuid())
+  type          ContentType
+  title         String
+  thumbnail     String
+  description   String?
+  subjects      String[]
+  slug          String          @unique
+  status        ContentStatus   @default(PENDING)
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+  category_id   Int
+  category      Categories      @relation(fields: [category_id], references: [id], onDelete: Restrict)
+  Genres        Genres[]
+  Comments      Comments[]
+  Ratings       Ratings[]
   VideoPodcasts VideoPodcasts[]
-
   AudioPodcasts AudioPodcasts[]
-
-  Blogs Blogs[]
-
-  Ebooks Ebooks[]
-
-  Novel Novels[]
-
-  PklReports PklReports[]
+  Blogs         Blogs[]
+  Ebooks        Ebooks[]
+  Stories       Stories[]
+  Prakerin      Prakerin[]
+  Submissions   Submissions[]
 }
 
 model Categories {
@@ -108,10 +116,10 @@ model Categories {
   avatar_url  String?
   name        String     @unique
   description String?
-  content     Contents[]
+  Content     Contents[]
 }
 
-model Tags {
+model Genres {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
   avatar_url  String?
@@ -167,18 +175,29 @@ model Ebooks {
   content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
-model Novels {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
+model Stories {
+  id         Int        @id @default(autoincrement())
+  uuid       String     @unique @default(uuid())
   author_id  Int
-  author     Students @relation(fields: [author_id], references: [id], onDelete: Cascade)
-  pages      Int
-  file_url   String
-  content_id Int      @unique
-  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  author     Students   @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  episodes   Episodes[]
+  content_id Int        @unique
+  content    Contents   @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
-model PklReports {
+model Episodes {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  title      String
+  content    String // Actual text or description of the episode
+  order      Int // Order of the episode in the story
+  story_id   Int
+  story      Stories  @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Prakerin {
   id           Int      @id @default(autoincrement())
   uuid         String   @unique @default(uuid())
   author_id    Int
@@ -190,6 +209,57 @@ model PklReports {
   content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
+model Submissions {
+  id             Int          @id @default(autoincrement())
+  uuid           String       @unique @default(uuid())
+  student_id     Int
+  student        Students     @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  content_id     Int
+  content        Contents     @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  competition_id Int
+  competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  judges         Judges[]
+  Winners        Winners[]
+}
+
+model Judges {
+  id            Int         @id @default(autoincrement())
+  uuid          String      @unique @default(uuid())
+  user_id       Int
+  user          Users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  submission_id Int
+  submission    Submissions @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+  score         Float
+  comment       String?
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+}
+
+model Competitions {
+  id                  Int           @id @default(autoincrement())
+  uuid                String        @unique @default(uuid())
+  title               String
+  type                ContentType
+  description         String?
+  start_date          DateTime
+  end_date            DateTime
+  submission_deadline DateTime
+  submissions         Submissions[]
+  Winners             Winners[]
+}
+
+model Winners {
+  id             Int          @id @default(autoincrement())
+  uuid           String       @unique @default(uuid())
+  competition_id Int
+  competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  submission_id  Int // Kiriman yang menjadi pemenang
+  submission     Submissions  @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+  rank           Int // Rank untuk menentukan urutan (1, 2, atau 3)
+}
+
 enum SexType {
   male
   female
@@ -198,7 +268,6 @@ enum SexType {
 model Students {
   id         Int       @id @default(autoincrement())
   uuid       String    @unique @default(uuid())
-  image_url  String?
   nis        String    @unique
   name       String
   major_id   Int
@@ -206,14 +275,16 @@ model Students {
   birthplace String?
   birthdate  DateTime?
   sex        SexType
-  status     Boolean
+  status     Boolean   @default(false)
+  user_id    Int
+  user       Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   VideoPodcasts VideoPodcasts[]
-
   AudioPodcasts AudioPodcasts[]
+  Stories       Stories[]
+  Prakerin      Prakerin[]
 
-  Novel      Novels[]
-  PklReports PklReports[]
+  Submissions Submissions[]
 }
 
 model Majors {

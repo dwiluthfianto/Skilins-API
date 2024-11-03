@@ -2,12 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { SexType } from '@prisma/client';
 
 export class Student {
-  @ApiProperty({
-    example: 'https://example.com/siswa.jpg',
-    type: String,
-  })
-  image_url: string;
-
   @ApiProperty({ example: '123456', type: String })
   nis: string;
 

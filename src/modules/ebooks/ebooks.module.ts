@@ -6,6 +6,7 @@ import { SupabaseService } from 'src/supabase';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 
 @Module({
   controllers: [EbooksController],
@@ -13,6 +14,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
     EbooksService,
     SupabaseService,
     UuidHelper,
+    SlugHelper,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

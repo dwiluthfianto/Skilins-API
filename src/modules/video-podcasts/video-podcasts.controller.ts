@@ -40,7 +40,7 @@ export class VideoPodcastsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @ApiCreatedResponse({
     type: VideoPodcast,
   })
@@ -138,7 +138,7 @@ export class VideoPodcastsController {
 
   @Patch(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @UseInterceptors(FileInterceptor('thumbnail'))
   @ApiOkResponse({
     type: VideoPodcast,
@@ -177,7 +177,7 @@ export class VideoPodcastsController {
 
   @Delete(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully deleted.',

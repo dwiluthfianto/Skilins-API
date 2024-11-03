@@ -29,7 +29,7 @@ export class AnalyticsController {
 
   @Get('/pkl-reports')
   async getPklReportsStats() {
-    return this.analyticsService.getPklReportsStats();
+    return this.analyticsService.getPrakerinStats();
   }
 
   @Get('/feedback-stats')

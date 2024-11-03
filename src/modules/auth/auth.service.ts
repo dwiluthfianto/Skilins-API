@@ -10,6 +10,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import ms from 'ms';
+import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
+import { RoleType } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -74,6 +76,7 @@ export class AuthService {
         message: 'Verification successful!',
       };
     } catch (e) {
+      this.logger.log(e);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -153,8 +156,41 @@ export class AuthService {
         },
       });
     } catch (e) {
+      this.logger.log(e);
       throw new UnauthorizedException('Invalid or expired token');
     }
+  }
+
+  async changePassword(authChangePassworddDto: AuthChangePasswordDto) {
+    const { email, currentPassword, newPassword } = authChangePassworddDto;
+    const user = await this.prisma.users.findUniqueOrThrow({
+      where: { email },
+    });
+
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(
+        'Oops! The current password you entered is incorrect. Please verify and try again.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.users.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetTokenExpires: null,
+      },
+    });
+
+    return {
+      status: 'success',
+      message: 'Password changed successfully',
+    };
   }
 
   // Mengganti email pengguna
@@ -217,7 +253,7 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(authRegisterLoginDto.password, 10);
 
     const role = await this.prisma.roles.findUniqueOrThrow({
-      where: { name: authRegisterLoginDto.role },
+      where: { name: RoleType.User },
     });
 
     const user = await this.prisma.users.create({

@@ -35,7 +35,7 @@ export class AudioPodcastsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @ApiCreatedResponse({
     type: AudioPodcast,
   })
@@ -164,7 +164,7 @@ export class AudioPodcastsController {
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @ApiOkResponse({
     type: AudioPodcast,
   })
@@ -219,7 +219,7 @@ export class AudioPodcastsController {
 
   @Delete(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff', 'Student')
   @ApiOkResponse({
     type: AudioPodcast,
   })

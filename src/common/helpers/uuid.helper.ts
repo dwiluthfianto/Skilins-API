@@ -8,7 +8,7 @@ export class UuidHelper {
   async validateUuidContent(uuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
       where: { uuid },
-      select: { id: true },
+      select: { id: true, uuid: true },
     });
     return content;
   }
@@ -16,7 +16,7 @@ export class UuidHelper {
   async validateUuidCategory(name: string) {
     const category = await this.prisma.categories.findUniqueOrThrow({
       where: { name },
-      select: { name: true },
+      select: { id: true, uuid: true },
     });
     return category;
   }
@@ -24,7 +24,7 @@ export class UuidHelper {
   async validateUuidCreator(uuid: string) {
     const creator = await this.prisma.students.findUniqueOrThrow({
       where: { uuid },
-      select: { id: true },
+      select: { id: true, uuid: true },
     });
     return creator;
   }

@@ -1,16 +1,9 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateStudentDto } from './create-student.dto';
-import { IsOptional } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { SexType } from '@prisma/client';
 
 export class UpdateStudentDto extends PartialType(CreateStudentDto) {
-  @ApiPropertyOptional({
-    example: 'https://example.com/siswa.jpg',
-    type: String,
-  })
-  @IsOptional()
-  image_url?: string;
-
   @ApiPropertyOptional({ example: '123456', type: String })
   @IsOptional()
   nis?: string;
@@ -41,4 +34,12 @@ export class UpdateStudentDto extends PartialType(CreateStudentDto) {
   @ApiPropertyOptional({ example: 'true', type: Boolean })
   @IsOptional()
   status?: boolean = true;
+
+  @ApiPropertyOptional({
+    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
+    type: String,
+  })
+  @IsOptional()
+  @IsString()
+  user_uuid: string;
 }

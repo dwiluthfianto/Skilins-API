@@ -3,12 +3,14 @@ import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
 import { UpdateAudioPodcastDto } from './dto/update-audio-podcast.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
+import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 
 @Injectable()
 export class AudioPodcastsService {
   constructor(
     private prisma: PrismaService,
     private readonly uuidHelper: UuidHelper,
+    private readonly slugHelper: SlugHelper,
   ) {}
 
   async create(createAudioPodcastDto: CreateAudioPodcastDto) {
@@ -21,22 +23,22 @@ export class AudioPodcastsService {
       duration,
       file_url,
       creator_uuid,
-      tags,
+      genres,
     } = createAudioPodcastDto;
 
-    let parsedTags;
+    let parsedGenres;
 
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
+    if (Array.isArray(genres)) {
+      parsedGenres = genres;
+    } else if (typeof genres === 'string') {
       try {
-        parsedTags = JSON.parse(tags);
+        parsedGenres = JSON.parse(genres);
       } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
+        console.error('Failed to parse genres:', error);
+        throw new Error('Invalid JSON format for genres');
       }
     } else {
-      parsedTags = [];
+      parsedGenres = [];
     }
 
     let parsedSubjects;
@@ -52,7 +54,7 @@ export class AudioPodcastsService {
     } else {
       parsedSubjects = [];
     }
-
+    const slug = await this.slugHelper.generateUniqueSlug(title);
     const audio = await this.prisma.contents.create({
       data: {
         type: 'AudioPodcast',
@@ -61,6 +63,7 @@ export class AudioPodcastsService {
         description,
         subjects: parsedSubjects,
         category: { connect: { name: category_name } },
+        slug,
         AudioPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
@@ -68,15 +71,15 @@ export class AudioPodcastsService {
             file_url,
           },
         },
-        tags: {
-          connectOrCreate: parsedTags?.map((tag) => ({
-            where: { name: tag.name },
+        Genres: {
+          connectOrCreate: parsedGenres?.map((genre) => ({
+            where: { name: genre.name },
             create: {
-              name: tag.name,
+              name: genre.name,
               avatar_url:
-                tag.avatar_url ||
+                genre.avatar_url ||
                 'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: tag.description || 'No description available.',
+              description: genre.description || 'No description available.',
             },
           })),
         },
@@ -98,9 +101,7 @@ export class AudioPodcastsService {
       where: { type: 'AudioPodcast' },
       include: {
         category: true,
-        tags: true,
-        likes: true,
-        comments: true,
+        Ratings: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -111,37 +112,34 @@ export class AudioPodcastsService {
 
     const total = await this.prisma.audioPodcasts.count();
 
+    const data = await Promise.all(
+      audios.map(async (audio) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: audio.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+        return {
+          uuid: audio.uuid,
+          thumbnail: audio.thumbnail,
+          title: audio.title,
+          description: audio.description,
+          subjects: audio.subjects,
+          created_at: audio.created_at,
+          updated_at: audio.updated_at,
+          category: audio.category.name,
+          creator: audio.AudioPodcasts[0].creator.name,
+          duration: audio.AudioPodcasts[0].duration,
+          file_url: audio.AudioPodcasts[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
     return {
       status: 'success',
-      data: audios?.map((audio) => ({
-        uuid: audio.uuid,
-        thumbnail: audio.thumbnail,
-        title: audio.title,
-        description: audio.description,
-        subjects: audio.subjects,
-        created_at: audio.created_at,
-        updated_at: audio.updated_at,
-        category: audio.category.name,
-        creator: audio.AudioPodcasts[0].creator.name,
-        duration: audio.AudioPodcasts[0].duration,
-        file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags?.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: audio.comments?.map((comment) => ({
-          uuid: comment.uuid,
-          content: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
-        })),
-        likes: audio.likes?.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
+      data,
       totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
@@ -162,9 +160,7 @@ export class AudioPodcastsService {
       },
       include: {
         category: true,
-        tags: true,
-        likes: true,
-        comments: true,
+        Ratings: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -175,52 +171,49 @@ export class AudioPodcastsService {
 
     const total = await this.prisma.audioPodcasts.count();
 
+    const data = await Promise.all(
+      audios.map(async (audio) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: audio.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+        return {
+          uuid: audio.uuid,
+          thumbnail: audio.thumbnail,
+          title: audio.title,
+          description: audio.description,
+          subjects: audio.subjects,
+          created_at: audio.created_at,
+          updated_at: audio.updated_at,
+          category: audio.category.name,
+          creator: audio.AudioPodcasts[0].creator.name,
+          duration: audio.AudioPodcasts[0].duration,
+          file_url: audio.AudioPodcasts[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
     return {
       status: 'success',
-      data: audios?.map((audio) => ({
-        uuid: audio.uuid,
-        thumbnail: audio.thumbnail,
-        title: audio.title,
-        description: audio.description,
-        subjects: audio.subjects,
-        created_at: audio.created_at,
-        updated_at: audio.updated_at,
-        category: audio.category.name,
-        creator: audio.AudioPodcasts[0].creator.name,
-        duration: audio.AudioPodcasts[0].duration,
-        file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags?.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: audio.comments?.map((comment) => ({
-          uuid: comment.uuid,
-          content: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
-        })),
-        likes: audio.likes?.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
+      data,
       totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
     };
   }
-  async findByTag(page: number, limit: number, tag: string) {
+  async findByTag(page: number, limit: number, genre: string) {
     const audios = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
       where: {
         type: 'AudioPodcast',
-        tags: {
+        Genres: {
           some: {
             name: {
-              equals: tag,
+              equals: genre,
               mode: 'insensitive',
             },
           },
@@ -228,9 +221,7 @@ export class AudioPodcastsService {
       },
       include: {
         category: true,
-        tags: true,
-        likes: true,
-        comments: true,
+        Ratings: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -241,37 +232,34 @@ export class AudioPodcastsService {
 
     const total = await this.prisma.audioPodcasts.count();
 
+    const data = await Promise.all(
+      audios.map(async (audio) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: audio.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+        return {
+          uuid: audio.uuid,
+          thumbnail: audio.thumbnail,
+          title: audio.title,
+          description: audio.description,
+          subjects: audio.subjects,
+          created_at: audio.created_at,
+          updated_at: audio.updated_at,
+          category: audio.category.name,
+          creator: audio.AudioPodcasts[0].creator.name,
+          duration: audio.AudioPodcasts[0].duration,
+          file_url: audio.AudioPodcasts[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
     return {
       status: 'success',
-      data: audios?.map((audio) => ({
-        uuid: audio.uuid,
-        thumbnail: audio.thumbnail,
-        title: audio.title,
-        description: audio.description,
-        subjects: audio.subjects,
-        created_at: audio.created_at,
-        updated_at: audio.updated_at,
-        category: audio.category.name,
-        creator: audio.AudioPodcasts[0].creator.name,
-        duration: audio.AudioPodcasts[0].duration,
-        file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags?.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: audio.comments?.map((comment) => ({
-          uuid: comment.uuid,
-          content: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
-        })),
-        likes: audio.likes?.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
+      data,
       totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
@@ -295,9 +283,7 @@ export class AudioPodcastsService {
       },
       include: {
         category: true,
-        tags: true,
-        likes: true,
-        comments: true,
+        Ratings: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -308,37 +294,34 @@ export class AudioPodcastsService {
 
     const total = await this.prisma.audioPodcasts.count();
 
+    const data = await Promise.all(
+      audios.map(async (audio) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: audio.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+        return {
+          uuid: audio.uuid,
+          thumbnail: audio.thumbnail,
+          title: audio.title,
+          description: audio.description,
+          subjects: audio.subjects,
+          created_at: audio.created_at,
+          updated_at: audio.updated_at,
+          category: audio.category.name,
+          creator: audio.AudioPodcasts[0].creator.name,
+          duration: audio.AudioPodcasts[0].duration,
+          file_url: audio.AudioPodcasts[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
     return {
       status: 'success',
-      data: audios?.map((audio) => ({
-        uuid: audio.uuid,
-        thumbnail: audio.thumbnail,
-        title: audio.title,
-        description: audio.description,
-        subjects: audio.subjects,
-        created_at: audio.created_at,
-        updated_at: audio.updated_at,
-        category: audio.category.name,
-        creator: audio.AudioPodcasts[0].creator.name,
-        duration: audio.AudioPodcasts[0].duration,
-        file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags?.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: audio.comments?.map((comment) => ({
-          uuid: comment.uuid,
-          content: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
-        })),
-        likes: audio.likes?.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
+      data,
       totalPages: total,
       page,
       lastPage: Math.ceil(total / limit),
@@ -350,9 +333,9 @@ export class AudioPodcastsService {
       where: { uuid },
       include: {
         category: true,
-        tags: true,
-        likes: true,
-        comments: true,
+        Genres: true,
+        Ratings: true,
+        Comments: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -360,6 +343,14 @@ export class AudioPodcastsService {
         },
       },
     });
+
+    const avg_rating = await this.prisma.ratings.aggregate({
+      where: { content_id: audio.id },
+      _avg: {
+        rating_value: true,
+      },
+    });
+
     return {
       status: 'success',
       data: {
@@ -374,22 +365,18 @@ export class AudioPodcastsService {
         creator: audio.AudioPodcasts[0].creator.name,
         duration: audio.AudioPodcasts[0].duration,
         file_url: audio.AudioPodcasts[0].file_url,
-        tags: audio.tags?.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
+        genres: audio.Genres?.map((genre) => ({
+          uuid: genre.uuid,
+          name: genre.name,
         })),
-        comments: audio.comments?.map((comment) => ({
+        comments: audio.Comments?.map((comment) => ({
           uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        likes: audio.likes?.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
+        avg_rating,
       },
     };
   }
@@ -404,26 +391,26 @@ export class AudioPodcastsService {
       duration,
       file_url,
       creator_uuid,
-      tags,
+      genres,
     } = updateAudioPodcastDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
 
-    let parsedTags;
+    let parsedGenres;
 
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
+    if (Array.isArray(genres)) {
+      parsedGenres = genres;
+    } else if (typeof genres === 'string') {
       try {
-        parsedTags = JSON.parse(tags);
+        parsedGenres = JSON.parse(genres);
       } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
+        console.error('Failed to parse genres:', error);
+        throw new Error('Invalid JSON format for genres');
       }
     } else {
-      parsedTags = [];
+      parsedGenres = [];
     }
 
     let parsedSubjects;
@@ -440,6 +427,7 @@ export class AudioPodcastsService {
       parsedSubjects = [];
     }
 
+    const slug = await this.slugHelper.generateUniqueSlug(title);
     const audio = await this.prisma.contents.update({
       where: { uuid: uuid, type: 'AudioPodcast' },
       data: {
@@ -447,7 +435,8 @@ export class AudioPodcastsService {
         thumbnail,
         description,
         subjects: parsedSubjects,
-        category: { connect: { name: category.name } },
+        slug,
+        category: { connect: { uuid: category.uuid } },
         AudioPodcasts: {
           update: {
             where: { content_id: content.id },
@@ -458,15 +447,15 @@ export class AudioPodcastsService {
             },
           },
         },
-        tags: {
-          connectOrCreate: parsedTags?.map((tag) => ({
-            where: { name: tag.name },
+        Genres: {
+          connectOrCreate: parsedGenres?.map((genre) => ({
+            where: { name: genre.name },
             create: {
-              name: tag.name,
+              name: genre.name,
               avatar_url:
-                tag.avatar_url ||
+                genre.avatar_url ||
                 'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: tag.description || 'No description available.',
+              description: genre.description || 'No description available.',
             },
           })),
         },

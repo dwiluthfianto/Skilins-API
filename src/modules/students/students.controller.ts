@@ -9,8 +9,6 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -18,65 +16,24 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Student } from './entities/student.entity';
 import { RolesGuard } from 'src/common/guards/roles.guard';
-// import { AuthGuard } from 'src/common/guards/auth.guard';
 import { Roles } from '../roles/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { SupabaseService } from 'src/supabase';
-import { ContentFileEnum } from '../contents/content-file.enum';
+import { StatusStudentDto } from './dto/update-status-student.dto';
 
 @ApiTags('Student')
 @Controller({ path: 'api/v1/students', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('admin')
 export class StudentsController {
-  constructor(
-    private readonly studentsService: StudentsService,
-    private readonly supabaseService: SupabaseService,
-  ) {}
+  constructor(private readonly studentsService: StudentsService) {}
 
   @Post()
   @ApiCreatedResponse({
     type: Student,
   })
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('image_url'))
-  async create(
-    @UploadedFile() image_url: Express.Multer.File,
-    @Body() createStudentDto: CreateStudentDto,
-  ) {
-    let imageFilename: string;
-    try {
-      if (image_url && image_url.size > 0) {
-        const { success, url, fileName, error } =
-          await this.supabaseService.uploadFile(
-            image_url,
-            `skilins_storage/${ContentFileEnum.student}`,
-          );
-
-        if (!success) {
-          throw new Error(`Failed to upload image: ${error}`);
-        }
-
-        imageFilename = fileName;
-        createStudentDto.image_url = url;
-      }
-      return await this.studentsService.create(createStudentDto);
-    } catch (e) {
-      console.error('Error during student creation:', e.message);
-
-      const { success, error } = await this.supabaseService.deleteFile([
-        `${ContentFileEnum.student}${imageFilename}`,
-      ]);
-
-      if (!success) {
-        console.error('Failed to delete files:', error);
-      }
-
-      return {
-        message: 'Failed to create student and cleaned up uploaded files.',
-      };
-    }
+  @Roles('User')
+  async create(@Body() createStudentDto: CreateStudentDto) {
+    return await this.studentsService.create(createStudentDto);
   }
 
   @Get()
@@ -85,6 +42,7 @@ export class StudentsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
+  @Roles('Staff')
   findAll() {
     return this.studentsService.findAll();
   }
@@ -94,6 +52,7 @@ export class StudentsController {
     type: Student,
   })
   @HttpCode(HttpStatus.OK)
+  @Roles('Staff', 'Student')
   findOne(@Param('uuid') uuid: string) {
     return this.studentsService.findOne(uuid);
   }
@@ -103,28 +62,25 @@ export class StudentsController {
     type: Student,
   })
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('image_url'))
+  @Roles('Staff', 'Student')
   async update(
     @Param('uuid') uuid: string,
-    @UploadedFile() image_url: Express.Multer.File,
     @Body() updateStudentDto: UpdateStudentDto,
   ) {
-    const student = await this.studentsService.update(uuid, updateStudentDto);
-    if (student.status === 'success') {
-      const isExist = await this.studentsService.findOne(uuid);
-      if (image_url && image_url.size > 0) {
-        const imageFilename = isExist.data.image_url.split('/').pop();
-        const { success, error } = await this.supabaseService.updateFile(
-          `${ContentFileEnum.student}${imageFilename}`,
-          image_url,
-        );
-        if (!success) {
-          throw new Error(`Failed to update student: ${error}`);
-        }
-      }
-    }
+    return await this.studentsService.update(uuid, updateStudentDto);
+  }
 
-    return student;
+  @Patch(':uuid/verify-student')
+  @ApiOkResponse({
+    type: Student,
+  })
+  @HttpCode(HttpStatus.OK)
+  @Roles('Staff')
+  async verifyStudent(
+    @Param('uuid') uuid: string,
+    @Body() statusStudentDto: StatusStudentDto,
+  ) {
+    return await this.studentsService.verifiedStudent(uuid, statusStudentDto);
   }
 
   @Delete(':uuid')
@@ -132,24 +88,8 @@ export class StudentsController {
     type: Student,
   })
   @HttpCode(HttpStatus.OK)
+  @Roles('Staff')
   async remove(@Param('uuid') uuid: string) {
-    const isExist = await this.studentsService.findOne(uuid);
-    const thumbFilename = isExist.data.image_url
-      .split('/')
-      .pop()
-      .replace(/%20/g, ' ');
-    if (isExist) {
-      const student = await this.studentsService.remove(uuid);
-      if (student.status === 'success') {
-        const { success, error } = await this.supabaseService.deleteFile([
-          `${ContentFileEnum.student}${thumbFilename}`,
-        ]);
-
-        if (!success) {
-          console.error('Failed to delete student:', error);
-        }
-      }
-      return student;
-    }
+    return await this.studentsService.remove(uuid);
   }
 }

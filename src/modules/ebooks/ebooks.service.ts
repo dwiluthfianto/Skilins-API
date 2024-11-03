@@ -3,12 +3,14 @@ import { CreateEbookDto } from './dto/create-ebook.dto';
 import { UpdateEbookDto } from './dto/update-ebook.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
+import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 
 @Injectable()
 export class EbooksService {
   constructor(
     private prisma: PrismaService,
     private readonly uuidHelper: UuidHelper,
+    private readonly slugHelper: SlugHelper,
   ) {}
 
   async create(createContentDto: CreateEbookDto) {
@@ -24,22 +26,22 @@ export class EbooksService {
       file_url,
       isbn,
       release_date,
-      tags,
+      genres,
     } = createContentDto;
 
-    let parsedTags;
+    let parsedGenres;
 
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
+    if (Array.isArray(genres)) {
+      parsedGenres = genres;
+    } else if (typeof genres === 'string') {
       try {
-        parsedTags = JSON.parse(tags);
+        parsedGenres = JSON.parse(genres);
       } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
+        console.error('Failed to parse genres:', error);
+        throw new Error('Invalid JSON format for genres');
       }
     } else {
-      parsedTags = [];
+      parsedGenres = [];
     }
 
     let parsedSubjects;
@@ -56,12 +58,14 @@ export class EbooksService {
       parsedSubjects = [];
     }
 
+    const slug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {
         type: 'Ebook',
         title,
         thumbnail,
         description,
+        slug,
         subjects: parsedSubjects,
         category: { connect: { name: category_name } },
         Ebooks: {
@@ -74,15 +78,15 @@ export class EbooksService {
             release_date: release_date,
           },
         },
-        tags: {
-          connectOrCreate: parsedTags?.map((tag) => ({
-            where: { name: tag.name },
+        Genres: {
+          connectOrCreate: parsedGenres?.map((genre) => ({
+            where: { name: genre.name },
             create: {
-              name: tag.name,
+              name: genre.name,
               avatar_url:
-                tag.avatar_url ||
+                genre.avatar_url ||
                 'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: tag.description || 'No description available.',
+              description: genre.description || 'No description available.',
             },
           })),
         },
@@ -91,7 +95,7 @@ export class EbooksService {
 
     return {
       status: 'success',
-      message: 'Ebook succesfully added.',
+      message: 'Ebook added successfully.',
       data: {
         uuid: content.uuid,
       },
@@ -105,62 +109,48 @@ export class EbooksService {
       where: { type: 'Ebook' },
       include: {
         category: true,
-        tags: true,
-        comments: {
-          include: {
-            user: {
-              select: {
-                uuid: true,
-                full_name: true,
-                profile_url: true,
-              },
-            },
-          },
-        },
-        likes: true,
+        Ratings: true,
         Ebooks: true,
       },
     });
 
     const total = await this.prisma.ebooks.count();
 
+    const data = await Promise.all(
+      contents.map(async (content) => {
+        // Calculate average rating for each content
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: content.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
+
+        return {
+          uuid: content.uuid,
+          thumbnail: content.thumbnail,
+          title: content.title,
+          description: content.description,
+          subjects: content.subjects,
+          created_at: content.created_at,
+          updated_at: content.updated_at,
+          category: content.category.name,
+          author: content.Ebooks[0]?.author,
+          pages: content.Ebooks[0]?.pages,
+          publication: content.Ebooks[0]?.publication,
+          file_url: content.Ebooks[0]?.file_url,
+          isbn: content.Ebooks[0]?.isbn,
+          release_date: content.Ebooks[0]?.release_date,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        subjects: content.subjects,
-        created_at: content.created_at,
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Ebooks[0].author,
-        pages: content.Ebooks[0].pages,
-        publication: content.Ebooks[0].publication,
-        file_url: content.Ebooks[0].file_url,
-        isbn: content.Ebooks[0].isbn,
-        release_date: content.Ebooks[0].release_date,
-        tags: content.tags.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: content.comments.map((comment) => ({
-          uuid: comment.uuid,
-          subject: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by_uuid: comment.user.uuid,
-          commented_by: comment.user.full_name,
-          profile: comment.user.profile_url,
-        })),
-        likes: content.likes.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
-      totalPages: total,
+      data,
+      totalPages: Math.ceil(total / limit),
       page,
       lastPage: Math.ceil(total / limit),
     };
@@ -180,77 +170,63 @@ export class EbooksService {
       },
       include: {
         category: true,
-        tags: true,
-        comments: {
-          include: {
-            user: {
-              select: {
-                uuid: true,
-                full_name: true,
-                profile_url: true,
-              },
-            },
-          },
-        },
-        likes: true,
+        Ratings: true,
         Ebooks: true,
       },
     });
 
     const total = await this.prisma.ebooks.count();
 
+    const data = await Promise.all(
+      contents.map(async (content) => {
+        // Calculate average rating for each content
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: content.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
+
+        return {
+          uuid: content.uuid,
+          thumbnail: content.thumbnail,
+          title: content.title,
+          description: content.description,
+          subjects: content.subjects,
+          created_at: content.created_at,
+          updated_at: content.updated_at,
+          category: content.category.name,
+          author: content.Ebooks[0]?.author,
+          pages: content.Ebooks[0]?.pages,
+          publication: content.Ebooks[0]?.publication,
+          file_url: content.Ebooks[0]?.file_url,
+          isbn: content.Ebooks[0]?.isbn,
+          release_date: content.Ebooks[0]?.release_date,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        subjects: content.subjects,
-        created_at: content.created_at,
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Ebooks[0].author,
-        pages: content.Ebooks[0].pages,
-        publication: content.Ebooks[0].publication,
-        file_url: content.Ebooks[0].file_url,
-        isbn: content.Ebooks[0].isbn,
-        release_date: content.Ebooks[0].release_date,
-        tags: content.tags.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: content.comments.map((comment) => ({
-          uuid: comment.uuid,
-          subject: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by_uuid: comment.user.uuid,
-          commented_by: comment.user.full_name,
-          profile: comment.user.profile_url,
-        })),
-        likes: content.likes.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
-      totalPages: total,
+      data,
+      totalPages: Math.ceil(total / limit),
       page,
       lastPage: Math.ceil(total / limit),
     };
   }
 
-  async findByTag(page: number, limit: number, tag: string) {
+  async findByGenre(page: number, limit: number, genre: string) {
     const contents = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
       where: {
         type: 'Ebook',
-        tags: {
+        Genres: {
           some: {
             name: {
-              equals: tag,
+              equals: genre,
               mode: 'insensitive',
             },
           },
@@ -258,62 +234,48 @@ export class EbooksService {
       },
       include: {
         category: true,
-        tags: true,
-        comments: {
-          include: {
-            user: {
-              select: {
-                uuid: true,
-                full_name: true,
-                profile_url: true,
-              },
-            },
-          },
-        },
-        likes: true,
+        Ratings: true,
         Ebooks: true,
       },
     });
 
     const total = await this.prisma.ebooks.count();
 
+    const data = await Promise.all(
+      contents.map(async (content) => {
+        // Calculate average rating for each content
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: content.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
+
+        return {
+          uuid: content.uuid,
+          thumbnail: content.thumbnail,
+          title: content.title,
+          description: content.description,
+          subjects: content.subjects,
+          created_at: content.created_at,
+          updated_at: content.updated_at,
+          category: content.category.name,
+          author: content.Ebooks[0]?.author,
+          pages: content.Ebooks[0]?.pages,
+          publication: content.Ebooks[0]?.publication,
+          file_url: content.Ebooks[0]?.file_url,
+          isbn: content.Ebooks[0]?.isbn,
+          release_date: content.Ebooks[0]?.release_date,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        subjects: content.subjects,
-        created_at: content.created_at,
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Ebooks[0].author,
-        pages: content.Ebooks[0].pages,
-        publication: content.Ebooks[0].publication,
-        file_url: content.Ebooks[0].file_url,
-        isbn: content.Ebooks[0].isbn,
-        release_date: content.Ebooks[0].release_date,
-        tags: content.tags.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: content.comments.map((comment) => ({
-          uuid: comment.uuid,
-          subject: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by_uuid: comment.user.uuid,
-          commented_by: comment.user.full_name,
-          profile: comment.user.profile_url,
-        })),
-        likes: content.likes.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
-      totalPages: total,
+      data,
+      totalPages: Math.ceil(total / limit),
       page,
       lastPage: Math.ceil(total / limit),
     };
@@ -339,61 +301,47 @@ export class EbooksService {
       },
       include: {
         category: true,
-        tags: true,
-        comments: {
-          include: {
-            user: {
-              select: {
-                uuid: true,
-                full_name: true,
-                profile_url: true,
-              },
-            },
-          },
-        },
-        likes: true,
+        Ratings: true,
         Ebooks: true,
       },
     });
 
     const total = await this.prisma.ebooks.count();
+    const data = await Promise.all(
+      contents.map(async (content) => {
+        // Calculate average rating for each content
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: content.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
+
+        return {
+          uuid: content.uuid,
+          thumbnail: content.thumbnail,
+          title: content.title,
+          description: content.description,
+          subjects: content.subjects,
+          created_at: content.created_at,
+          updated_at: content.updated_at,
+          category: content.category.name,
+          author: content.Ebooks[0]?.author,
+          pages: content.Ebooks[0]?.pages,
+          publication: content.Ebooks[0]?.publication,
+          file_url: content.Ebooks[0]?.file_url,
+          isbn: content.Ebooks[0]?.isbn,
+          release_date: content.Ebooks[0]?.release_date,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        subjects: content.subjects,
-        created_at: content.created_at,
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Ebooks[0].author,
-        pages: content.Ebooks[0].pages,
-        publication: content.Ebooks[0].publication,
-        file_url: content.Ebooks[0].file_url,
-        isbn: content.Ebooks[0].isbn,
-        release_date: content.Ebooks[0].release_date,
-        tags: content.tags.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
-        })),
-        comments: content.comments.map((comment) => ({
-          uuid: comment.uuid,
-          subject: comment.comment_content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          commented_by_uuid: comment.user.uuid,
-          commented_by: comment.user.full_name,
-          profile: comment.user.profile_url,
-        })),
-        likes: content.likes.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
-      })),
-      totalPages: total,
+      data,
+      totalPages: Math.ceil(total / limit),
       page,
       lastPage: Math.ceil(total / limit),
     };
@@ -404,8 +352,8 @@ export class EbooksService {
       where: { uuid },
       include: {
         category: true,
-        tags: true,
-        comments: {
+        Genres: true,
+        Comments: {
           include: {
             user: {
               select: {
@@ -416,11 +364,17 @@ export class EbooksService {
             },
           },
         },
-        likes: true,
+        Ratings: true,
         Ebooks: true,
       },
     });
 
+    const avg_rating = await this.prisma.ratings.aggregate({
+      where: { content_id: content.id },
+      _avg: {
+        rating_value: true,
+      },
+    });
     return {
       status: 'success',
       data: {
@@ -438,11 +392,11 @@ export class EbooksService {
         file_url: content.Ebooks[0].file_url,
         isbn: content.Ebooks[0].isbn,
         release_date: content.Ebooks[0].release_date,
-        tags: content.tags.map((tag) => ({
-          uuid: tag.uuid,
-          name: tag.name,
+        genres: content.Genres.map((genre) => ({
+          uuid: genre.uuid,
+          name: genre.name,
         })),
-        comments: content.comments.map((comment) => ({
+        comments: content.Comments.map((comment) => ({
           uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
@@ -451,11 +405,7 @@ export class EbooksService {
           commented_by: comment.user.full_name,
           profile: comment.user.profile_url,
         })),
-        likes: content.likes.map((like) => ({
-          uuid: like.uuid,
-          created_at: like.created_at,
-          liked_by: like.liked_by,
-        })),
+        avg_rating: avg_rating._avg.rating_value,
       },
     };
   }
@@ -473,25 +423,25 @@ export class EbooksService {
       file_url,
       isbn,
       release_date,
-      tags,
+      genres,
     } = updateContentDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
 
-    let parsedTags;
+    let parsedGenres;
 
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
+    if (Array.isArray(genres)) {
+      parsedGenres = genres;
+    } else if (typeof genres === 'string') {
       try {
-        parsedTags = JSON.parse(tags);
+        parsedGenres = JSON.parse(genres);
       } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
+        console.error('Failed to parse genres:', error);
+        throw new Error('Invalid JSON format for genres');
       }
     } else {
-      parsedTags = [];
+      parsedGenres = [];
     }
 
     let parsedSubjects;
@@ -508,6 +458,7 @@ export class EbooksService {
       parsedSubjects = [];
     }
 
+    const slug = await this.slugHelper.generateUniqueSlug(title);
     const ebook = await this.prisma.contents.update({
       where: { uuid, type: 'Ebook' },
       data: {
@@ -515,22 +466,23 @@ export class EbooksService {
         thumbnail,
         description,
         subjects: parsedSubjects,
-        category: { connect: { name: category.name } },
+        slug,
+        category: { connect: { uuid: category.uuid } },
         Ebooks: {
           update: {
             where: { content_id: content.id },
             data: { author, pages, publication, file_url, isbn, release_date },
           },
         },
-        tags: {
-          connectOrCreate: parsedTags?.map((tag) => ({
-            where: { name: tag.name },
+        Genres: {
+          connectOrCreate: parsedGenres?.map((genre) => ({
+            where: { name: genre.name },
             create: {
-              name: tag.name,
+              name: genre.name,
               avatar_url:
-                tag.avatar_url ||
+                genre.avatar_url ||
                 'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: tag.description || 'No description available.',
+              description: genre.description || 'No description available.',
             },
           })),
         },

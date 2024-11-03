@@ -18,6 +18,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
+import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
 
 @ApiTags('Auth')
 @Controller({ path: 'api/v1/auth', version: '1' })
@@ -128,7 +129,15 @@ export class AuthController {
     return this.authService.resetPassword(authResetPasswordDto);
   }
 
+  @Post('change-password')
+  @HttpCode(200)
+  @UseGuards(AuthGuard('jwt'))
+  async changePassword(@Body() authChangePasswordDto: AuthChangePasswordDto) {
+    return this.authService.changePassword(authChangePasswordDto);
+  }
+
   @Post('change-email')
+  @UseGuards(AuthGuard('jwt'))
   async changeEmail(
     @Body('uuid') uuid: string,
     @Body('newEmail') newEmail: string,

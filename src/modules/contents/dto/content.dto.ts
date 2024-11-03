@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, MinLength } from 'class-validator';
-import { UpdateTagDto } from 'src/modules/tags/dto/update-tag.dto';
+import { UpdateGenreDto } from 'src/modules/genres/dto/update-genre.dto';
 
 export class ContentDto {
   @ApiProperty({ example: 'Content Title', type: String })
@@ -32,13 +32,13 @@ export class ContentDto {
   @ApiPropertyOptional({
     example: [
       {
-        name: 'this is a tag name',
+        name: 'this is a genre name',
         avatar_url: 'https://example.com/avatar.jpg',
         description: 'this is a description',
       },
     ],
-    type: () => UpdateTagDto,
+    type: () => UpdateGenreDto,
   })
   @IsOptional()
-  tags: UpdateTagDto[];
+  genres: UpdateGenreDto[];
 }

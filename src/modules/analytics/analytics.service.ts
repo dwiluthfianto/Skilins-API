@@ -69,17 +69,19 @@ export class AnalyticsService {
     const lastMonthEnd = endOfMonth(subMonths(new Date(), 1));
 
     const totalContents = await this.prisma.contents.count();
-    const popularContent = await this.prisma.likes.groupBy({
+
+    // Mendapatkan konten terpopuler berdasarkan rata-rata rating
+    const popularContent = await this.prisma.ratings.groupBy({
       by: ['content_id'],
-      _count: {
-        content_id: true,
+      _avg: {
+        rating_value: true,
       },
       orderBy: {
-        _count: {
-          content_id: 'desc',
+        _avg: {
+          rating_value: 'desc',
         },
       },
-      take: 5, // ambil 5 konten terpopuler berdasarkan jumlah like
+      take: 5, // Ambil 5 konten dengan rata-rata rating tertinggi
     });
 
     const monthlyContentCreate = await this.prisma.contents.count({
@@ -99,7 +101,7 @@ export class AnalyticsService {
       },
     });
 
-    const contentStats = {
+    return {
       totalContents,
       popularContent,
       monthlyContent: {
@@ -107,7 +109,6 @@ export class AnalyticsService {
         lastMonthContentCreate,
       },
     };
-    return contentStats;
   }
 
   async getContentTypeStats() {
@@ -124,7 +125,7 @@ export class AnalyticsService {
       }),
       novel: await this.prisma.contents.count({
         where: {
-          type: 'Novel',
+          type: 'Story',
           created_at: {
             gte: currentSixMonths,
           },
@@ -140,7 +141,7 @@ export class AnalyticsService {
       }),
       pklReport: await this.prisma.contents.count({
         where: {
-          type: 'PklReport',
+          type: 'Prakerin',
           created_at: {
             gte: currentSixMonths,
           },
@@ -198,7 +199,7 @@ export class AnalyticsService {
     };
   }
 
-  async getPklReportsStats() {
+  async getPrakerinStats() {
     const currentDate = new Date();
 
     // Dapatkan tanggal 6 bulan yang lalu
@@ -208,7 +209,7 @@ export class AnalyticsService {
     const monthlyReports = await this.prisma.contents.groupBy({
       by: ['created_at'],
       where: {
-        type: 'PklReport',
+        type: 'Prakerin',
         created_at: {
           gte: startOfMonth(sixMonthsAgo), // Mulai dari awal 6 bulan yang lalu
           lte: endOfMonth(currentDate), // Hingga akhir bulan ini
@@ -256,22 +257,14 @@ export class AnalyticsService {
     const currentDate = new Date();
 
     const commentTotal = await this.prisma.comments.count();
-    const likeTotal = await this.prisma.likes.count();
+    const ratingTotal = await this.prisma.ratings.count();
 
-    // Dapatkan semua data comment dan like selama 3 bulan terakhir
-    const commentsData = await this.prisma.comments.groupBy({
+    // Mendapatkan data rating untuk periode 3 bulan terakhir
+    const ratingsData = await this.prisma.ratings.groupBy({
       by: ['created_at'],
-      _count: true,
-      where: {
-        created_at: {
-          gte: subDays(currentDate, 90), // 90 hari terakhir
-          lte: currentDate,
-        },
+      _avg: {
+        rating_value: true,
       },
-    });
-
-    const likesData = await this.prisma.likes.groupBy({
-      by: ['created_at'],
       _count: true,
       where: {
         created_at: {
@@ -283,20 +276,34 @@ export class AnalyticsService {
 
     // Buat map untuk agregasi berdasarkan tanggal
     const commentMap = new Map();
-    const likeMap = new Map();
+    const ratingMap = new Map();
 
     // Agregasi comments berdasarkan tanggal
+    const commentsData = await this.prisma.comments.groupBy({
+      by: ['created_at'],
+      _count: true,
+      where: {
+        created_at: {
+          gte: subDays(currentDate, 90),
+          lte: currentDate,
+        },
+      },
+    });
+
     commentsData.forEach((comment) => {
-      const date = comment.created_at.toISOString().split('T')[0]; // format YYYY-MM-DD
+      const date = comment.created_at.toISOString().split('T')[0];
       const currentCount = commentMap.get(date) || 0;
       commentMap.set(date, currentCount + comment._count);
     });
 
-    // Agregasi likes berdasarkan tanggal
-    likesData.forEach((like) => {
-      const date = like.created_at.toISOString().split('T')[0];
-      const currentCount = likeMap.get(date) || 0;
-      likeMap.set(date, currentCount + like._count);
+    // Agregasi rating berdasarkan tanggal
+    ratingsData.forEach((rating) => {
+      const date = rating.created_at.toISOString().split('T')[0];
+      const currentCount = ratingMap.get(date) || 0;
+      ratingMap.set(date, {
+        count: currentCount + rating._count,
+        avg: rating._avg.rating_value,
+      });
     });
 
     // Format hasil akhir sebagai array untuk frontend
@@ -307,18 +314,19 @@ export class AnalyticsService {
       }),
     );
 
-    const dailyLikeStats = Array.from(likeMap.entries()).map(
-      ([date, count]) => ({
+    const dailyRatingStats = Array.from(ratingMap.entries()).map(
+      ([date, data]) => ({
         date,
-        count,
+        count: data.count,
+        averageRating: data.avg,
       }),
     );
 
     return {
       lastThreeMonthsComment: dailyCommentStats,
-      lastThreeMonthsLike: dailyLikeStats,
+      lastThreeMonthsRating: dailyRatingStats,
       commentTotal,
-      likeTotal,
+      ratingTotal,
     };
   }
 }
