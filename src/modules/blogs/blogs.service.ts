@@ -3,90 +3,58 @@ import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
-import slugify from 'slugify';
+import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class BlogsService {
   constructor(
     private prisma: PrismaService,
     private readonly uuidHelper: UuidHelper,
+    private readonly slugHelper: SlugHelper,
   ) {}
 
-  async create(createBlogDto: CreateBlogDto) {
-    const {
-      title,
-      thumbnail,
-      description,
-      subjects,
-      category_name,
-      author_uuid,
-      blog_content,
-      published,
-      published_at,
-      genres,
-    } = createBlogDto;
+  async create(authorUuid: string, createBlogDto: CreateBlogDto) {
+    const { title, thumbnail, description, tags, category_name } =
+      createBlogDto;
 
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedGenres = JSON.parse(genres);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedGenres = [];
+      parsedTags = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
-      try {
-        parsedSubjects = JSON.parse(subjects);
-      } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
-      }
-    } else {
-      parsedSubjects = [];
-    }
-
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {
         type: 'Blog',
         title,
         thumbnail,
         description,
-        slug: slugify(title, {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        }),
-        subjects: parsedSubjects,
-        category: { connect: { uuid: category_name } },
-        Blogs: {
-          create: {
-            author: { connect: { uuid: author_uuid } },
-            blog_content,
-            published,
-            published_at,
+        status: ContentStatus.APPROVED,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
+        slug: newSlug,
+        category: {
+          connect: {
+            name: category_name,
           },
         },
-        Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
-          })),
+        Blogs: {
+          create: {
+            author: { connect: { uuid: authorUuid } },
+          },
         },
       },
     });
@@ -107,6 +75,7 @@ export class BlogsService {
       where: { type: 'Blog' },
       include: {
         category: true,
+        Tags: true,
         Blogs: {
           include: {
             author: true,
@@ -120,17 +89,18 @@ export class BlogsService {
     return {
       status: 'success',
       data: contents.map((content) => ({
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Blogs[0].author.full_name,
-        blog_content: content.Blogs[0].blog_content,
-        published: content.Blogs[0].published,
-        published_at: content.Blogs[0].published_at,
       })),
       totalPages: total,
       page,
@@ -153,6 +123,7 @@ export class BlogsService {
       },
       include: {
         category: true,
+        Tags: true,
         Blogs: {
           include: {
             author: true,
@@ -166,17 +137,18 @@ export class BlogsService {
     return {
       status: 'success',
       data: contents.map((content) => ({
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Blogs[0].author.full_name,
-        blog_content: content.Blogs[0].blog_content,
-        published: content.Blogs[0].published,
-        published_at: content.Blogs[0].published_at,
       })),
       totalPages: total,
       page,
@@ -184,7 +156,7 @@ export class BlogsService {
     };
   }
 
-  async findByGenre(page: number, limit: number, genre: string) {
+  async findByGenre(page: number, limit: number, tag: string) {
     const contents = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
@@ -193,7 +165,7 @@ export class BlogsService {
         Genres: {
           some: {
             name: {
-              equals: genre,
+              equals: tag,
               mode: 'insensitive',
             },
           },
@@ -201,6 +173,7 @@ export class BlogsService {
       },
       include: {
         category: true,
+        Tags: true,
         Blogs: {
           include: {
             author: true,
@@ -214,17 +187,18 @@ export class BlogsService {
     return {
       status: 'success',
       data: contents.map((content) => ({
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Blogs[0].author.full_name,
-        blog_content: content.Blogs[0].blog_content,
-        published: content.Blogs[0].published,
-        published_at: content.Blogs[0].published_at,
       })),
       totalPages: total,
       page,
@@ -252,6 +226,7 @@ export class BlogsService {
       },
       include: {
         category: true,
+        Tags: true,
         Blogs: {
           include: {
             author: true,
@@ -264,17 +239,18 @@ export class BlogsService {
     return {
       status: 'success',
       data: contents.map((content) => ({
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Blogs[0].author.full_name,
-        blog_content: content.Blogs[0].blog_content,
-        published: content.Blogs[0].published,
-        published_at: content.Blogs[0].published_at,
       })),
       totalPages: total,
       page,
@@ -282,10 +258,76 @@ export class BlogsService {
     };
   }
 
-  async findOne(uuid: string) {
+  async findOneByUuid(uuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
       where: { type: 'Blog', uuid },
       include: {
+        category: true,
+        Tags: true,
+        Genres: true,
+        Comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
+        Blogs: {
+          include: {
+            author: true,
+          },
+        },
+      },
+    });
+
+    const avg_rating = await this.prisma.ratings.aggregate({
+      where: { content_id: content.id },
+      _avg: {
+        rating_value: true,
+      },
+    });
+
+    return {
+      status: 'success',
+      data: {
+        uuid: content.uuid,
+        thumbnail: content.thumbnail,
+        title: content.title,
+        description: content.description,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
+        updated_at: content.updated_at,
+        category: content.category.name,
+        author: content.Blogs[0].author.full_name,
+        genres: content.Genres.map((genre) => ({
+          id: genre.uuid,
+          text: genre.name,
+        })),
+        comments: content.Comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
+        })),
+        avg_rating,
+      },
+    };
+  }
+  async findOneBySlug(slug: string) {
+    const content = await this.prisma.contents.findUniqueOrThrow({
+      where: { type: 'Blog', slug },
+      include: {
+        Tags: true,
         category: true,
         Genres: true,
         Comments: {
@@ -317,20 +359,21 @@ export class BlogsService {
     return {
       status: 'success',
       data: {
-        id: content.uuid,
+        uuid: content.uuid,
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         updated_at: content.updated_at,
         category: content.category.name,
         author: content.Blogs[0].author.full_name,
-        blog_content: content.Blogs[0].blog_content,
-        published: content.Blogs[0].published,
-        published_at: content.Blogs[0].published_at,
         genres: content.Genres.map((genre) => ({
-          uuid: genre.uuid,
-          name: genre.name,
+          id: genre.uuid,
+          text: genre.name,
         })),
         comments: content.Comments.map((comment) => ({
           uuid: comment.uuid,
@@ -346,91 +389,58 @@ export class BlogsService {
     };
   }
 
-  async update(uuid: string, updateBlogDto: UpdateBlogDto) {
-    const {
-      title,
-      thumbnail,
-      description,
-      subjects,
-      category_name,
-      author_uuid,
-      blog_content,
-      published,
-      published_at,
-      genres,
-    } = updateBlogDto;
+  async update(
+    authorUuid: string,
+    contentUuid: string,
+    updateBlogDto: UpdateBlogDto,
+  ) {
+    const { title, thumbnail, description, tags, category_name } =
+      updateBlogDto;
 
-    const content = await this.uuidHelper.validateUuidContent(uuid);
-    const author = await this.uuidHelper.validateUuidCreator(author_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_name);
+    const content = await this.uuidHelper.validateUuidContent(contentUuid);
 
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedGenres = JSON.parse(genres);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedGenres = [];
+      parsedTags = [];
     }
-
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
-      try {
-        parsedSubjects = JSON.parse(subjects);
-      } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
-      }
-    } else {
-      parsedSubjects = [];
-    }
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
 
     const blog = await this.prisma.contents.update({
       where: {
-        uuid: uuid,
+        uuid: content.uuid,
         type: 'Blog',
       },
       data: {
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
-        slug: slugify(title, {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        }),
-        category: { connect: { uuid: category.uuid } },
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
+        slug: newSlug,
+        category: {
+          connect: {
+            name: category_name,
+          },
+        },
         Blogs: {
           update: {
             where: { content_id: content.id },
             data: {
-              author_id: author.id,
-              blog_content,
-              published,
-              published_at,
+              author: { connect: { uuid: authorUuid } },
             },
           },
-        },
-        Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
-          })),
         },
       },
     });

@@ -5,14 +5,28 @@ import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { UpdateCompetitionDto } from './dto/update-competition.dto';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { JudgeSubmissionDto } from './dto/judge-submission.dto';
+import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 
 @Injectable()
 export class CompetitionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly slugHelper: SlugHelper,
+  ) {}
 
   async createCompetition(data: CreateCompetitionDto) {
+    const newSlug = await this.slugHelper.generateUniqueSlug(data.title);
     const competition = await this.prisma.competitions.create({
-      data,
+      data: {
+        title: data.title,
+        slug: newSlug,
+        type: data.type,
+        description: data.description,
+        guide: data.guide,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        submission_deadline: data.submission_deadline,
+      },
     });
 
     return {

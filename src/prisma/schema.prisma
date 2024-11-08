@@ -46,27 +46,31 @@ model Roles {
 }
 
 model Ratings {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
+  id           Int       @id @default(autoincrement())
+  uuid         String    @unique @default(uuid())
   content_id   Int
-  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  content      Contents  @relation(fields: [content_id], references: [id], onDelete: Cascade)
   rating_by    Int
-  user         Users    @relation(fields: [rating_by], references: [id], onDelete: Cascade)
+  user         Users     @relation(fields: [rating_by], references: [id], onDelete: Cascade)
   rating_value Int
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  Episodes     Episodes? @relation(fields: [episodesId], references: [id])
+  episodesId   Int?
 }
 
 model Comments {
-  id              Int      @id @default(autoincrement())
-  uuid            String   @unique @default(uuid())
+  id              Int       @id @default(autoincrement())
+  uuid            String    @unique @default(uuid())
   content_id      Int
-  content         Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  content         Contents  @relation(fields: [content_id], references: [id], onDelete: Cascade)
   comment_content String
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
   commented_by    Int
-  user            Users    @relation(fields: [commented_by], references: [id], onDelete: Cascade)
+  user            Users     @relation(fields: [commented_by], references: [id], onDelete: Cascade)
+  Episodes        Episodes? @relation(fields: [episodesId], references: [id])
+  episodesId      Int?
 }
 
 enum ContentType {
@@ -91,7 +95,6 @@ model Contents {
   title         String
   thumbnail     String
   description   String?
-  subjects      String[]
   slug          String          @unique
   status        ContentStatus   @default(PENDING)
   created_at    DateTime        @default(now())
@@ -108,6 +111,7 @@ model Contents {
   Stories       Stories[]
   Prakerin      Prakerin[]
   Submissions   Submissions[]
+  Tags          Tags[]
 }
 
 model Categories {
@@ -117,6 +121,15 @@ model Categories {
   name        String     @unique
   description String?
   Content     Contents[]
+}
+
+model Tags {
+  id          Int        @id @default(autoincrement())
+  uuid        String     @unique @default(uuid())
+  avatar_url  String?
+  name        String     @unique
+  description String?
+  content     Contents[]
 }
 
 model Genres {
@@ -151,15 +164,12 @@ model AudioPodcasts {
 }
 
 model Blogs {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
-  blog_content String
-  author_id    Int
-  published    Boolean
-  published_at DateTime
-  author       Users    @relation(fields: [author_id], references: [id], onDelete: Cascade)
-  content_id   Int      @unique
-  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid())
+  author_id  Int
+  author     Users    @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  content_id Int      @unique
+  content    Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
 model Ebooks {
@@ -186,15 +196,17 @@ model Stories {
 }
 
 model Episodes {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(uuid())
+  id         Int        @id @default(autoincrement())
+  uuid       String     @unique @default(uuid())
   title      String
-  content    String // Actual text or description of the episode
-  order      Int // Order of the episode in the story
+  content    String
+  order      Int        @unique
   story_id   Int
-  story      Stories  @relation(fields: [story_id], references: [id], onDelete: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  story      Stories    @relation(fields: [story_id], references: [id], onDelete: Cascade)
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  Comments   Comments[]
+  Ratings    Ratings[]
 }
 
 model Prakerin {
@@ -240,13 +252,16 @@ model Judges {
 model Competitions {
   id                  Int           @id @default(autoincrement())
   uuid                String        @unique @default(uuid())
+  thumbnail           String
   title               String
+  slug                String        @unique
   type                ContentType
-  description         String?
+  description         String
+  guide               String
   start_date          DateTime
   end_date            DateTime
   submission_deadline DateTime
-  submissions         Submissions[]
+  Submissions         Submissions[]
   Winners             Winners[]
 }
 
@@ -261,8 +276,8 @@ model Winners {
 }
 
 enum SexType {
-  male
-  female
+  Male
+  Female
 }
 
 model Students {

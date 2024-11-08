@@ -19,7 +19,7 @@ export class StoriesService {
       title,
       thumbnail,
       description,
-      subjects,
+      tags,
       category_name,
       genres,
       author_uuid,
@@ -40,18 +40,18 @@ export class StoriesService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
     const slug = await this.slugHelper.generateUniqueSlug(title);
 
@@ -61,7 +61,11 @@ export class StoriesService {
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
         category: { connect: { name: category_name } },
         slug,
         Stories: {
@@ -70,15 +74,8 @@ export class StoriesService {
           },
         },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((tag) => ({
+            name: tag.name,
           })),
         },
       },
@@ -146,6 +143,7 @@ export class StoriesService {
         Genres: true,
         Ratings: true,
         Comments: true,
+        Tags: true,
         Stories: {
           include: {
             author: true,
@@ -171,7 +169,11 @@ export class StoriesService {
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
@@ -205,6 +207,7 @@ export class StoriesService {
         Genres: true,
         Ratings: true,
         Comments: true,
+        Tags: true,
         Stories: {
           include: {
             author: true,
@@ -233,7 +236,11 @@ export class StoriesService {
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
@@ -265,7 +272,7 @@ export class StoriesService {
     authorUuid: string,
     updateStoryDto: UpdateStoryDto,
   ) {
-    const { title, thumbnail, description, subjects, category_name, genres } =
+    const { title, thumbnail, description, tags, category_name, genres } =
       updateStoryDto;
 
     const content = await this.prisma.contents.findUniqueOrThrow({
@@ -301,40 +308,37 @@ export class StoriesService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
 
-    const slug = await this.slugHelper.generateUniqueSlug(title);
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const story = await this.prisma.contents.update({
       where: { uuid: contentUuid, type: 'Story' },
       data: {
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
-        slug,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
+        slug: newSlug,
         category: { connect: { uuid: category.uuid } },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((genre) => ({
+            name: genre.text,
           })),
         },
       },

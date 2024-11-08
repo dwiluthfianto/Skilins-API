@@ -57,15 +57,6 @@ export class Blog implements Contents {
   })
   author_uuid: string;
 
-  @ApiProperty({ example: 'This is a blog content', type: String })
-  blog_content: string;
-
-  @ApiProperty({ example: true, type: Boolean })
-  published: boolean = false;
-
-  @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
-  published_at: Date;
-
   @ApiProperty({ example: '[]', type: String })
   genres: Genres[];
 

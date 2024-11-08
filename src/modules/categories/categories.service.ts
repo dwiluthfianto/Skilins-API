@@ -46,6 +46,21 @@ export class CategoriesService {
     };
   }
 
+  async findAllByName(name: string) {
+    const categories = await this.prisma.categories.findMany({
+      where: { name: { contains: name, mode: 'insensitive' } },
+    });
+    return {
+      status: 'success',
+      data: categories.map((category) => ({
+        uuid: category.uuid,
+        avatar_url: category.avatar_url,
+        name: category.name,
+        description: category.description,
+      })),
+    };
+  }
+
   async findOne(name: string) {
     const category = await this.prisma.categories.findUniqueOrThrow({
       where: { name },

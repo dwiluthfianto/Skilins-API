@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class CreateGenreDto {
+export class CreateTagDto {
   @ApiPropertyOptional({
     example: 'https://example.com/avatar.jpg',
     type: String,

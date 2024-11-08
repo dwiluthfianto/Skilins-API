@@ -18,6 +18,11 @@ export class CreateCompetitionDto {
   @IsString()
   description: string;
 
+  @ApiProperty({ example: 'Guide of competition', type: String })
+  @IsNotEmpty()
+  @IsString()
+  guide: string;
+
   @ApiProperty({ example: '2024-04-30T04:00:00.000Z', type: Date })
   @Transform(({ value }) => new Date(value))
   @IsNotEmpty()

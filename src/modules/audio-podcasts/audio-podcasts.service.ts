@@ -18,7 +18,7 @@ export class AudioPodcastsService {
       title,
       thumbnail,
       description,
-      subjects,
+      tags,
       category_name,
       duration,
       file_url,
@@ -41,29 +41,33 @@ export class AudioPodcastsService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
-    const slug = await this.slugHelper.generateUniqueSlug(title);
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const audio = await this.prisma.contents.create({
       data: {
         type: 'AudioPodcast',
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
         category: { connect: { name: category_name } },
-        slug,
+        slug: newSlug,
         AudioPodcasts: {
           create: {
             creator: { connect: { uuid: creator_uuid } },
@@ -72,15 +76,8 @@ export class AudioPodcastsService {
           },
         },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((genre) => ({
+            name: genre.text,
           })),
         },
       },
@@ -102,6 +99,7 @@ export class AudioPodcastsService {
       include: {
         category: true,
         Ratings: true,
+        Tags: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -126,7 +124,11 @@ export class AudioPodcastsService {
           thumbnail: audio.thumbnail,
           title: audio.title,
           description: audio.description,
-          subjects: audio.subjects,
+          slug: audio.slug,
+          tags: audio.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: audio.created_at,
           updated_at: audio.updated_at,
           category: audio.category.name,
@@ -161,6 +163,7 @@ export class AudioPodcastsService {
       include: {
         category: true,
         Ratings: true,
+        Tags: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -185,7 +188,11 @@ export class AudioPodcastsService {
           thumbnail: audio.thumbnail,
           title: audio.title,
           description: audio.description,
-          subjects: audio.subjects,
+          slug: audio.slug,
+          tags: audio.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: audio.created_at,
           updated_at: audio.updated_at,
           category: audio.category.name,
@@ -222,6 +229,7 @@ export class AudioPodcastsService {
       include: {
         category: true,
         Ratings: true,
+        Tags: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -246,7 +254,11 @@ export class AudioPodcastsService {
           thumbnail: audio.thumbnail,
           title: audio.title,
           description: audio.description,
-          subjects: audio.subjects,
+          slug: audio.slug,
+          tags: audio.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: audio.created_at,
           updated_at: audio.updated_at,
           category: audio.category.name,
@@ -283,6 +295,7 @@ export class AudioPodcastsService {
       },
       include: {
         category: true,
+        Tags: true,
         Ratings: true,
         AudioPodcasts: {
           include: {
@@ -308,7 +321,11 @@ export class AudioPodcastsService {
           thumbnail: audio.thumbnail,
           title: audio.title,
           description: audio.description,
-          subjects: audio.subjects,
+          slug: audio.slug,
+          tags: audio.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: audio.created_at,
           updated_at: audio.updated_at,
           category: audio.category.name,
@@ -335,6 +352,7 @@ export class AudioPodcastsService {
         category: true,
         Genres: true,
         Ratings: true,
+        Tags: true,
         Comments: true,
         AudioPodcasts: {
           include: {
@@ -358,7 +376,11 @@ export class AudioPodcastsService {
         thumbnail: audio.thumbnail,
         title: audio.title,
         description: audio.description,
-        subjects: audio.subjects,
+        slug: audio.slug,
+        tags: audio.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         created_at: audio.created_at,
         updated_at: audio.updated_at,
         category: audio.category.name,
@@ -386,7 +408,7 @@ export class AudioPodcastsService {
       title,
       thumbnail,
       description,
-      subjects,
+      tags,
       category_name,
       duration,
       file_url,
@@ -413,18 +435,18 @@ export class AudioPodcastsService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
 
     const slug = await this.slugHelper.generateUniqueSlug(title);
@@ -434,7 +456,11 @@ export class AudioPodcastsService {
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
         slug,
         category: { connect: { uuid: category.uuid } },
         AudioPodcasts: {
@@ -448,15 +474,8 @@ export class AudioPodcastsService {
           },
         },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((genre) => ({
+            name: genre.text,
           })),
         },
       },

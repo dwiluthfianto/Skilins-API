@@ -1,8 +1,8 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CreateGenreDto } from './create-genre.dto';
+import { CreateTagDto } from './create-tag.dto';
 import { IsOptional, IsString } from 'class-validator';
 
-export class UpdateGenreDto extends PartialType(CreateGenreDto) {
+export class UpdateTagDto extends PartialType(CreateTagDto) {
   @ApiPropertyOptional({
     example: 'https://example.com/avatar.jpg',
     type: String,

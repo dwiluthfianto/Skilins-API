@@ -4,6 +4,7 @@ import { UpdateEbookDto } from './dto/update-ebook.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class EbooksService {
@@ -18,7 +19,7 @@ export class EbooksService {
       title,
       thumbnail,
       description,
-      subjects,
+      tags,
       category_name,
       author,
       pages,
@@ -44,29 +45,34 @@ export class EbooksService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
 
-    const slug = await this.slugHelper.generateUniqueSlug(title);
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {
         type: 'Ebook',
         title,
         thumbnail,
         description,
-        slug,
-        subjects: parsedSubjects,
+        status: ContentStatus.APPROVED,
+        slug: newSlug,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
         category: { connect: { name: category_name } },
         Ebooks: {
           create: {
@@ -79,15 +85,8 @@ export class EbooksService {
           },
         },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((tag) => ({
+            name: tag.name,
           })),
         },
       },
@@ -110,6 +109,8 @@ export class EbooksService {
       include: {
         category: true,
         Ratings: true,
+        Tags: true,
+        Genres: true,
         Ebooks: true,
       },
     });
@@ -132,7 +133,15 @@ export class EbooksService {
           thumbnail: content.thumbnail,
           title: content.title,
           description: content.description,
-          subjects: content.subjects,
+          slug: content.slug,
+          tags: content.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: content.Genres.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: content.created_at,
           updated_at: content.updated_at,
           category: content.category.name,
@@ -170,6 +179,8 @@ export class EbooksService {
       },
       include: {
         category: true,
+        Tags: true,
+        Genres: true,
         Ratings: true,
         Ebooks: true,
       },
@@ -193,7 +204,15 @@ export class EbooksService {
           thumbnail: content.thumbnail,
           title: content.title,
           description: content.description,
-          subjects: content.subjects,
+          slug: content.slug,
+          tags: content.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: content.Genres.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: content.created_at,
           updated_at: content.updated_at,
           category: content.category.name,
@@ -234,6 +253,8 @@ export class EbooksService {
       },
       include: {
         category: true,
+        Tags: true,
+        Genres: true,
         Ratings: true,
         Ebooks: true,
       },
@@ -257,7 +278,15 @@ export class EbooksService {
           thumbnail: content.thumbnail,
           title: content.title,
           description: content.description,
-          subjects: content.subjects,
+          slug: content.slug,
+          tags: content.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: content.Genres.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: content.created_at,
           updated_at: content.updated_at,
           category: content.category.name,
@@ -301,7 +330,9 @@ export class EbooksService {
       },
       include: {
         category: true,
+        Genres: true,
         Ratings: true,
+        Tags: true,
         Ebooks: true,
       },
     });
@@ -323,7 +354,15 @@ export class EbooksService {
           thumbnail: content.thumbnail,
           title: content.title,
           description: content.description,
-          subjects: content.subjects,
+          slug: content.slug,
+          tags: content.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: content.Genres.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
           created_at: content.created_at,
           updated_at: content.updated_at,
           category: content.category.name,
@@ -364,6 +403,7 @@ export class EbooksService {
             },
           },
         },
+        Tags: true,
         Ratings: true,
         Ebooks: true,
       },
@@ -382,7 +422,11 @@ export class EbooksService {
         thumbnail: content.thumbnail,
         title: content.title,
         description: content.description,
-        subjects: content.subjects,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
         created_at: content.created_at,
         updated_at: content.updated_at,
         category: content.category.name,
@@ -393,8 +437,8 @@ export class EbooksService {
         isbn: content.Ebooks[0].isbn,
         release_date: content.Ebooks[0].release_date,
         genres: content.Genres.map((genre) => ({
-          uuid: genre.uuid,
-          name: genre.name,
+          id: genre.uuid,
+          text: genre.name,
         })),
         comments: content.Comments.map((comment) => ({
           uuid: comment.uuid,
@@ -415,7 +459,7 @@ export class EbooksService {
       title,
       thumbnail,
       description,
-      subjects,
+      tags,
       category_name,
       author,
       pages,
@@ -444,29 +488,33 @@ export class EbooksService {
       parsedGenres = [];
     }
 
-    let parsedSubjects;
-    if (Array.isArray(subjects)) {
-      parsedSubjects = subjects;
-    } else if (typeof subjects === 'string') {
+    let parsedTags;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
       try {
-        parsedSubjects = JSON.parse(subjects);
+        parsedTags = JSON.parse(tags);
       } catch (error) {
-        console.error('Failed to parse subjects:', error);
-        throw new Error('Invalid JSON format for subjects');
+        console.error('Failed to parse tags:', error);
+        throw new Error('Invalid JSON format for tags');
       }
     } else {
-      parsedSubjects = [];
+      parsedTags = [];
     }
 
-    const slug = await this.slugHelper.generateUniqueSlug(title);
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const ebook = await this.prisma.contents.update({
       where: { uuid, type: 'Ebook' },
       data: {
         title,
         thumbnail,
         description,
-        subjects: parsedSubjects,
-        slug,
+        Tags: {
+          connect: parsedTags?.map((tag) => ({
+            name: tag.text,
+          })),
+        },
+        slug: newSlug,
         category: { connect: { uuid: category.uuid } },
         Ebooks: {
           update: {
@@ -475,15 +523,8 @@ export class EbooksService {
           },
         },
         Genres: {
-          connectOrCreate: parsedGenres?.map((genre) => ({
-            where: { name: genre.name },
-            create: {
-              name: genre.name,
-              avatar_url:
-                genre.avatar_url ||
-                'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-              description: genre.description || 'No description available.',
-            },
+          connect: parsedGenres?.map((genre) => ({
+            name: genre.text,
           })),
         },
       },
@@ -491,7 +532,7 @@ export class EbooksService {
 
     return {
       status: 'success',
-      message: 'Ebook succesfully updated.',
+      message: 'Ebook updated succesfully.',
       data: {
         uuid: ebook.uuid,
       },
@@ -507,7 +548,7 @@ export class EbooksService {
 
     return {
       status: 'success',
-      message: 'Ebook succesfully deleted',
+      message: 'Ebook deleted succesfully .',
       data: {
         uuid: ebook.uuid,
       },

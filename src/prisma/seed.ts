@@ -61,7 +61,7 @@ async function main() {
       profile_url: null,
       password: '$2a$10$jHwi4rWw6gGGRNiuGA0CT.ooBUicRQFT5m9KNLr51FYuXVkgiN.Ba',
       emailVerified: true,
-      roles: { connect: { name: RoleType.Admin } },
+      roles: { connect: { name: RoleType.Staff } },
     },
   });
 

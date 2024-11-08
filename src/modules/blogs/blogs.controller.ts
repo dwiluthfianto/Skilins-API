@@ -13,6 +13,8 @@ import {
   UseInterceptors,
   UploadedFile,
   HttpException,
+  Req,
+  ParseFilePipeBuilder,
 } from '@nestjs/common';
 import { BlogsService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
@@ -25,6 +27,7 @@ import { Roles } from '../roles/roles.decorator';
 import { SupabaseService } from 'src/supabase';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { Request } from 'express';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/v1/contents/blogs', version: '1' })
@@ -43,10 +46,24 @@ export class BlogsController {
   @UseInterceptors(FileInterceptor('thumbnail'))
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @UploadedFile() thumbnail: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: '.(png|jpeg|jpg)',
+        })
+        .addMaxSizeValidator({
+          maxSize: 1 * 1024 * 1024,
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    thumbnail: Express.Multer.File,
+    @Req() req: Request,
     @Body() createBlogDto: CreateBlogDto,
   ) {
     let thumbnailFilename: string;
+    const user = req.user;
     try {
       if (thumbnail && thumbnail.size > 0) {
         const { success, url, fileName, error } =
@@ -62,7 +79,7 @@ export class BlogsController {
         thumbnailFilename = fileName;
         createBlogDto.thumbnail = url;
       }
-      return await this.blogsService.create(createBlogDto);
+      return await this.blogsService.create(user['sub'], createBlogDto);
     } catch (e) {
       console.error('Error during Blog creation:', e.message);
 
@@ -118,16 +135,16 @@ export class BlogsController {
     return this.blogsService.findLatest(page, limit, week);
   }
 
-  @Get(':uuid')
+  @Get(':slug')
   @ApiOkResponse({
     type: Blog,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.blogsService.findOne(uuid);
+  findOne(@Param('slug') slug: string) {
+    return this.blogsService.findOneBySlug(slug);
   }
 
-  @Patch(':uuid')
+  @Patch(':contentUuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Staff')
   @ApiOkResponse({
@@ -136,13 +153,31 @@ export class BlogsController {
   @UseInterceptors(FileInterceptor('thumbnail'))
   @HttpCode(HttpStatus.OK)
   async update(
-    @UploadedFile() thumbnail: Express.Multer.File,
-    @Param('uuid') uuid: string,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: '.(png|jpeg|jpg)',
+        })
+        .addMaxSizeValidator({
+          maxSize: 2 * 1024 * 1024,
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    thumbnail: Express.Multer.File,
+    @Req() req: Request,
+    @Param('contentUuid') contentUuid: string,
     @Body() updateBlogDto: UpdateBlogDto,
   ) {
-    const blog = await this.blogsService.update(uuid, updateBlogDto);
+    const user = req.user;
+    const blog = await this.blogsService.update(
+      user['sub'],
+      contentUuid,
+      updateBlogDto,
+    );
     if (blog.status === 'success') {
-      const isExist = await this.blogsService.findOne(uuid);
+      const isExist = await this.blogsService.findOneByUuid(contentUuid);
       if (thumbnail && thumbnail.size > 0) {
         const avatarFilename = isExist.data.thumbnail.split('/').pop();
         const { success, error } = await this.supabaseService.updateFile(
@@ -158,20 +193,20 @@ export class BlogsController {
     return blog;
   }
 
-  @Delete(':uuid')
+  @Delete(':contentUuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Staff')
   @ApiOkResponse({
     type: Blog,
   })
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('uuid') uuid: string) {
-    const isExist = await this.blogsService.findOne(uuid);
+  async remove(@Param('contentUuid') contentUuid: string) {
+    const isExist = await this.blogsService.findOneByUuid(contentUuid);
     const thumbFilename = isExist?.data?.thumbnail
       ? isExist.data.thumbnail.split('/').pop().replace(/%20/g, ' ')
       : null;
     if (isExist) {
-      const blog = await this.blogsService.remove(uuid);
+      const blog = await this.blogsService.remove(contentUuid);
       if (blog.status === 'success') {
         const { success, error } = await this.supabaseService.deleteFile([
           `${ContentFileEnum.thumbnail}${thumbFilename}`,

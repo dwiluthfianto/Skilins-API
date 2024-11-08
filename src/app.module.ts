@@ -24,6 +24,7 @@ import { RatingsModule } from './modules/ratings/ratings.module';
 import { ContentsModule } from './modules/contents/contents.module';
 import { CompetitionsModule } from './modules/competitions/competitions.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TagsModule } from './modules/tags/tags.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     RatingsModule,
     ContentsModule,
     CompetitionsModule,
+    TagsModule,
   ],
   controllers: [],
   providers: [PrismaService],

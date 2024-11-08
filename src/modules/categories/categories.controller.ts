@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -79,8 +80,12 @@ export class CategoriesController {
   @Get()
   @ApiOkResponse({ type: Category, isArray: true })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.categoriesService.findAll();
+  findAll(@Query('search') search: string) {
+    if (search) {
+      return this.categoriesService.findAllByName(search);
+    } else {
+      return this.categoriesService.findAll();
+    }
   }
 
   @Get(':name')
