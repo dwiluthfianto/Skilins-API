@@ -6,49 +6,38 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  UseInterceptors,
   HttpCode,
   HttpStatus,
-  UseGuards,
   UploadedFiles,
-  UseInterceptors,
   Query,
 } from '@nestjs/common';
-import { EbooksService } from './ebooks.service';
-import { CreateEbookDto } from './dto/create-ebook.dto';
-import { UpdateEbookDto } from './dto/update-ebook.dto';
-import {
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { Ebook } from './entities/ebook.entity';
-import { Roles } from '../roles/roles.decorator';
+import { PrakerinService } from './prakerin.service';
+import { CreatePrakerinDto } from './dto/create-prakerin.dto';
+import { UpdatePrakerinDto } from './dto/update-prakerin.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from '../roles/roles.decorator';
+import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { Prakerin } from './entities/prakerin.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { SupabaseService } from 'src/supabase';
 
-@ApiTags('Contents')
-@Controller({ path: 'api/v1/contents/ebooks', version: '1' })
-export class EbooksController {
+@Controller('prakerin')
+export class PrakerinController {
   constructor(
-    private readonly ebooksService: EbooksService,
+    private readonly prakerinService: PrakerinService,
     private readonly supabaseService: SupabaseService,
   ) {}
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Staff')
+  @Roles('Student')
   @ApiCreatedResponse({
-    type: Ebook,
+    type: Prakerin,
   })
-  @ApiResponse({
-    status: 201,
-    description: 'The record has been successfully created.',
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
@@ -59,7 +48,7 @@ export class EbooksController {
       thumbnail?: Express.Multer.File[];
       file_url?: Express.Multer.File[];
     },
-    @Body() createEbookDto: CreateEbookDto,
+    @Body() createPrakerinDto: CreatePrakerinDto,
   ) {
     let thumbFilename: string;
     let fileFilename: string;
@@ -81,7 +70,7 @@ export class EbooksController {
 
         thumbFilename = thumbnailFilename;
 
-        createEbookDto.thumbnail = thumbnailUrl;
+        createPrakerinDto.thumbnail = thumbnailUrl;
       }
 
       if (files.file_url && files.file_url.length > 0) {
@@ -92,22 +81,23 @@ export class EbooksController {
           error: fileError,
         } = await this.supabaseService.uploadFile(
           files.file_url[0],
-          `skilins_storage/${ContentFileEnum.file_ebook}`,
+          `skilins_storage/${ContentFileEnum.file_report}`,
         );
 
         if (!fileSuccess) {
           throw new Error(`Failed to upload file: ${fileError}`);
         }
         fileFilename = fileUrlFilename;
-        createEbookDto.file_url = fileUrl;
+        createPrakerinDto.file_url = fileUrl;
       }
-      const result = await this.ebooksService.create(createEbookDto);
+
+      const result = await this.prakerinService.create(createPrakerinDto);
       return result;
     } catch (e) {
-      console.error('Error during ebook podcast creation:', e.message);
+      console.error('Error during report podcast creation:', e.message);
 
       const { success, error } = await this.supabaseService.deleteFile([
-        `${ContentFileEnum.file_ebook}${fileFilename}`,
+        `${ContentFileEnum.file_report}${fileFilename}`,
         `${ContentFileEnum.thumbnail}${thumbFilename}`,
       ]);
 
@@ -116,81 +106,68 @@ export class EbooksController {
       }
 
       return {
-        message:
-          'Failed to create ebook podcast and cleaned up uploaded files.',
+        message: 'Failed to create report and cleaned up uploaded files.',
       };
     }
   }
 
   @Get()
   @ApiOkResponse({
-    type: Ebook,
+    type: Prakerin,
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('category') category: string,
-    @Query('genre') genre: string,
-  ) {
-    if (category) {
-      return this.ebooksService.findByCategory(page, limit, category);
-    } else if (genre) {
-      return this.ebooksService.findByGenre(page, limit, genre);
-    } else {
-      return this.ebooksService.findAll(page, limit);
-    }
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+    return this.prakerinService.findAll(page, limit);
   }
 
   @Get('latest')
   @ApiOkResponse({
-    type: Ebook,
+    type: Prakerin,
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
   findLatest(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
+    @Query('days') days: number = 7,
   ) {
-    return this.ebooksService.findLatest(page, limit, week);
+    return this.prakerinService.findLatest(page, limit, days);
   }
 
-  @Get(':slug')
+  @Get(':uuid')
   @ApiOkResponse({
-    type: Ebook,
+    type: Prakerin,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('slug') slug: string) {
-    return this.ebooksService.findOneBySlug(slug);
+  findOne(@Param('uuid') uuid: string) {
+    return this.prakerinService.findOne(uuid);
   }
 
-  @Patch(':contentUuid')
+  @Patch(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Staff')
-  @ApiOkResponse({
-    type: Ebook,
-  })
+  @Roles('admin')
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
+  @ApiOkResponse({
+    type: Prakerin,
+  })
   @HttpCode(HttpStatus.OK)
   async update(
+    @Param('uuid') uuid: string,
     @UploadedFiles()
     files: {
       thumbnail?: Express.Multer.File[];
       file_url?: Express.Multer.File[];
     },
-    @Param('contentUuid') contentUuid: string,
-    @Body() updateEbookDto: UpdateEbookDto,
+    @Body() updatePrakerinDto: UpdatePrakerinDto,
   ) {
-    const ebook = await this.ebooksService.update(contentUuid, updateEbookDto);
+    const report = await this.prakerinService.update(uuid, updatePrakerinDto);
+    if (report.status === 'success') {
+      const isExist = await this.prakerinService.findOne(uuid);
 
-    if (ebook.status === 'success') {
-      const isExist = await this.ebooksService.findOne(contentUuid);
-
-      if (files?.thumbnail && files.thumbnail.length > 0) {
+      if (files.thumbnail && files.thumbnail.length > 0) {
         const thumbFilename = isExist.data.thumbnail.split('/').pop();
 
         const { success: thumbnailSuccess, error: thumbnailError } =
@@ -204,11 +181,11 @@ export class EbooksController {
         }
       }
 
-      if (files?.file_url && files.file_url.length > 0) {
+      if (files.file_url && files.file_url.length > 0) {
         const fileFilename = isExist.data.file_url.split('/').pop();
         const { success: fileSuccess, error: fileError } =
           await this.supabaseService.updateFile(
-            `${ContentFileEnum.file_ebook}${fileFilename}`,
+            `${ContentFileEnum.file_report}${fileFilename}`,
             files.file_url[0],
           );
 
@@ -217,18 +194,19 @@ export class EbooksController {
         }
       }
     }
-    return ebook;
+
+    return report;
   }
 
   @Delete(':uuid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Staff')
+  @Roles('admin')
   @ApiOkResponse({
-    type: Ebook,
+    type: Prakerin,
   })
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
-    const isExist = await this.ebooksService.findOne(uuid);
+    const isExist = await this.prakerinService.findOne(uuid);
     const thumbFilename = isExist.data.thumbnail
       .split('/')
       .pop()
@@ -238,18 +216,18 @@ export class EbooksController {
       .pop()
       .replace(/%20/g, ' ');
     if (isExist) {
-      const ebook = await this.ebooksService.remove(uuid);
-      if (ebook.status === 'success') {
+      const report = await this.prakerinService.remove(uuid);
+      if (report.status === 'success') {
         const { success, error } = await this.supabaseService.deleteFile([
           `${ContentFileEnum.thumbnail}${thumbFilename}`,
-          `${ContentFileEnum.file_ebook}${fileFilename}`,
+          `${ContentFileEnum.file_report}${fileFilename}`,
         ]);
 
         if (!success) {
           console.error('Failed to delete file:', error);
         }
       }
-      return ebook;
+      return report;
     }
   }
 }

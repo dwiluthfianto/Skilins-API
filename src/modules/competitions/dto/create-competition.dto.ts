@@ -4,6 +4,9 @@ import { Transform } from 'class-transformer';
 import { IsDate, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateCompetitionDto {
+  @ApiProperty({ example: 'https://example.com/thumbnail.jpg', type: String })
+  thumbnail: string;
+
   @ApiProperty({ example: 'Title of competition', type: String })
   @IsNotEmpty()
   @IsString()

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ContentApproveDto } from './dto/content-approve.dto';
+import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class ContentsService {
@@ -10,21 +10,22 @@ export class ContentsService {
     private readonly uuidHelper: UuidHelper,
   ) {}
 
-  async approveContent(uuid: string, contentApproveDto: ContentApproveDto) {
+  async updateContentStatus(uuid: string, status: ContentStatus) {
     const content = await this.uuidHelper.validateUuidContent(uuid);
 
     await this.prisma.contents.update({
       where: { id: content.id },
       data: {
-        status: contentApproveDto.status,
+        status: status,
       },
     });
 
     return {
       status: 'success',
-      message: 'Content approved and got published!',
+      message: `Content status updated to ${status}`,
       data: {
         uuid,
+        status: status,
       },
     };
   }

@@ -388,7 +388,74 @@ export class EbooksService {
 
   async findOne(uuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { uuid },
+      where: { type: 'Ebook', uuid },
+      include: {
+        category: true,
+        Genres: true,
+        Comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
+        Tags: true,
+        Ratings: true,
+        Ebooks: true,
+      },
+    });
+
+    const avg_rating = await this.prisma.ratings.aggregate({
+      where: { content_id: content.id },
+      _avg: {
+        rating_value: true,
+      },
+    });
+    return {
+      status: 'success',
+      data: {
+        uuid: content.uuid,
+        thumbnail: content.thumbnail,
+        title: content.title,
+        description: content.description,
+        slug: content.slug,
+        tags: content.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
+        created_at: content.created_at,
+        updated_at: content.updated_at,
+        category: content.category.name,
+        author: content.Ebooks[0].author,
+        pages: content.Ebooks[0].pages,
+        publication: content.Ebooks[0].publication,
+        file_url: content.Ebooks[0].file_url,
+        isbn: content.Ebooks[0].isbn,
+        release_date: content.Ebooks[0].release_date,
+        genres: content.Genres.map((genre) => ({
+          id: genre.uuid,
+          text: genre.name,
+        })),
+        comments: content.Comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
+        })),
+        avg_rating: avg_rating._avg.rating_value,
+      },
+    };
+  }
+  async findOneBySlug(slug: string) {
+    const content = await this.prisma.contents.findUniqueOrThrow({
+      where: { type: 'Ebook', slug },
       include: {
         category: true,
         Genres: true,

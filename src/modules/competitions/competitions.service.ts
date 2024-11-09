@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
@@ -6,18 +6,32 @@ import { UpdateCompetitionDto } from './dto/update-competition.dto';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { JudgeSubmissionDto } from './dto/judge-submission.dto';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import { ContentsService } from '../contents/contents.service';
+import { ContentStatus, ContentType } from '@prisma/client';
+import { MailerService } from '@nestjs-modules/mailer';
+import { RejectSubmissionDto } from './dto/reject-submission.dto';
+import { AudioPodcastsService } from '../audio-podcasts/audio-podcasts.service';
+import { VideoPodcastsService } from '../video-podcasts/video-podcasts.service';
+import { PrakerinService } from '../prakerin/prakerin.service';
 
 @Injectable()
 export class CompetitionsService {
+  private readonly logger = new Logger(CompetitionsService.name);
   constructor(
     private prisma: PrismaService,
     private readonly slugHelper: SlugHelper,
+    private readonly contentService: ContentsService,
+    private readonly mailerService: MailerService,
+    private readonly audioPodcastService: AudioPodcastsService,
+    private readonly videoPodcastService: VideoPodcastsService,
+    private readonly prakerinService: PrakerinService,
   ) {}
 
   async createCompetition(data: CreateCompetitionDto) {
     const newSlug = await this.slugHelper.generateUniqueSlug(data.title);
     const competition = await this.prisma.competitions.create({
       data: {
+        thumbnail: data.thumbnail,
         title: data.title,
         slug: newSlug,
         type: data.type,
@@ -39,9 +53,20 @@ export class CompetitionsService {
   }
 
   async updateCompetition(uuid: string, data: UpdateCompetitionDto) {
+    const newSlug = await this.slugHelper.generateUniqueSlug(data.title);
     const competition = await this.prisma.competitions.update({
       where: { uuid },
-      data,
+      data: {
+        thumbnail: data.thumbnail,
+        title: data.title,
+        slug: newSlug,
+        type: data.type,
+        description: data.description,
+        guide: data.guide,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        submission_deadline: data.submission_deadline,
+      },
     });
 
     return {
@@ -54,34 +79,85 @@ export class CompetitionsService {
   }
 
   async getAllCompetitions() {
-    return await this.prisma.competitions.findMany({
-      include: { submissions: true },
-    });
+    const competitions = await this.prisma.competitions.findMany();
+
+    return {
+      status: 'success',
+      data: competitions.map((competition) => ({
+        uuid: competition.uuid,
+        thumbnail: competition.thumbnail,
+        title: competition.title,
+        slug: competition.slug,
+        type: competition.type,
+        start_date: competition.start_date,
+        end_date: competition.end_date,
+        submission_date: competition.submission_deadline,
+      })),
+    };
   }
 
-  async getCompetitionById(uuid: string) {
-    return await this.prisma.competitions.findUnique({
-      where: { uuid },
+  async getCompetitionBySlug(slug: string) {
+    const competition = await this.prisma.competitions.findUniqueOrThrow({
+      where: { slug },
       include: {
-        submissions: {
+        Submissions: {
           include: { judges: true, student: true, content: true },
         },
+        Winners: true,
       },
     });
+
+    return {
+      status: 'success',
+      data: competition,
+    };
   }
 
-  async submitToCompetition(createSubmissionDto: CreateSubmissionDto) {
-    const { student_uuid, content_uuid, competition_uuid } =
+  async getCompetitionByUuid(uuid: string) {
+    const competition = await this.prisma.competitions.findUniqueOrThrow({
+      where: { uuid },
+      include: {
+        Submissions: {
+          include: { judges: true, student: true, content: true },
+        },
+        Winners: true,
+      },
+    });
+
+    return {
+      status: 'success',
+      data: competition,
+    };
+  }
+
+  async submitToCompetition(
+    studentUuid: string,
+    createSubmissionDto: CreateSubmissionDto,
+  ) {
+    const { competition_uuid, type, audioData, videoData, prakerinData } =
       createSubmissionDto;
 
     const competition = await this.prisma.competitions.findUniqueOrThrow({
       where: { uuid: competition_uuid },
     });
-    const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { uuid: content_uuid },
-    });
 
-    if (competition.type !== content.type) {
+    if (new Date() > competition.submission_deadline) {
+      throw new BadRequestException('Submission deadline has passed.');
+    }
+
+    let content;
+
+    if (type === ContentType.AudioPodcast && audioData) {
+      content = await this.audioPodcastService.create(audioData);
+    }
+    if (type === ContentType.VideoPodcast && videoData) {
+      content = await this.videoPodcastService.create(videoData);
+    }
+    if (type === ContentType.Prakerin && prakerinData) {
+      content = await this.prakerinService.create(prakerinData);
+    }
+
+    if (!content || competition.type !== content.type) {
       throw new BadRequestException(
         'Content category does not match competition category.',
       );
@@ -89,11 +165,61 @@ export class CompetitionsService {
 
     return await this.prisma.submissions.create({
       data: {
-        student: { connect: { uuid: student_uuid } },
-        content: { connect: { uuid: content_uuid } },
+        student: { connect: { uuid: studentUuid } },
+        content: { connect: { uuid: content.data.uuid } },
         competition: { connect: { uuid: competition_uuid } },
       },
     });
+  }
+
+  async approveSubmission(submissionUuid: string) {
+    const submission = await this.prisma.submissions.findUniqueOrThrow({
+      where: { uuid: submissionUuid },
+      include: { content: true, student: true },
+    });
+
+    await this.mailerService.sendMail({
+      to: submission.student.name,
+      subject: 'Submission Approved',
+      template: './submission-approved',
+      context: {
+        name: submission.student.name,
+      },
+    });
+
+    this.logger.log(
+      `Approved Submission email sent to ${submission.student.name}`,
+    );
+    return this.contentService.updateContentStatus(
+      submission.content.uuid,
+      ContentStatus.APPROVED,
+    );
+  }
+
+  async rejectSubmission(
+    submissionUuid: string,
+    rejectSubmissionDto: RejectSubmissionDto,
+  ) {
+    const submission = await this.prisma.submissions.findUniqueOrThrow({
+      where: { uuid: submissionUuid },
+      include: { content: true, student: true },
+    });
+
+    await this.mailerService.sendMail({
+      to: submission.student.name,
+      subject: `Submission Rejected`,
+      template: './submission-rejected',
+      context: {
+        name: submission.student.name,
+        reason: rejectSubmissionDto.reason,
+      },
+    });
+
+    this.logger.log(`Approved Submission sent to ${submission.student.name}`);
+    return this.contentService.updateContentStatus(
+      submission.content.uuid,
+      ContentStatus.REJECTED,
+    );
   }
 
   async judgeSubmission(judgeSubmissionDto: JudgeSubmissionDto) {
@@ -131,12 +257,12 @@ export class CompetitionsService {
         end_date: { lte: today },
         Winners: { none: {} },
       },
-      include: { submissions: { include: { judges: true } } },
+      include: { Submissions: { include: { judges: true } } },
     });
 
     for (const competition of endedCompetitions) {
       const topSubmissions = await this.getTopThreeSubmissions(
-        competition.submissions,
+        competition.Submissions,
       );
 
       // Menyimpan pemenang ke dalam database
@@ -179,7 +305,7 @@ export class CompetitionsService {
       },
     });
 
-    const average_user_rating = await this.prisma.ratings.aggregate({
+    const averageUserRating = await this.prisma.ratings.aggregate({
       where: { content: { uuid: submission.content.uuid } },
       _avg: {
         rating_value: true,
@@ -187,12 +313,15 @@ export class CompetitionsService {
     });
 
     const judgeScores = submission.judges.map((judge) => judge.score);
-    const averageJudgeScore =
-      judgeScores.reduce((a, b) => a + b, 0) / judgeScores.length;
+    const averageJudgeScore = judgeScores.length
+      ? judgeScores.reduce((a, b) => a + b, 0) / judgeScores.length
+      : 0;
 
-    return (
-      0.4 * average_user_rating._avg.rating_value + 0.6 * averageJudgeScore
-    );
+    // Jika rata-rata rating user `null`, maka dianggap 0
+    const userRatingScore = averageUserRating._avg.rating_value ?? 0;
+
+    // Menghitung skor akhir dengan bobot 40% rating user dan 60% skor juri
+    return 0.4 * userRatingScore + 0.6 * averageJudgeScore;
   }
 
   async getWinnersForCompetition(uuid: string) {

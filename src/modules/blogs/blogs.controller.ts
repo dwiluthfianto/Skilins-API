@@ -52,7 +52,7 @@ export class BlogsController {
           fileType: '.(png|jpeg|jpg)',
         })
         .addMaxSizeValidator({
-          maxSize: 1 * 1024 * 1024,
+          maxSize: 500 * 1024,
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -159,7 +159,7 @@ export class BlogsController {
           fileType: '.(png|jpeg|jpg)',
         })
         .addMaxSizeValidator({
-          maxSize: 2 * 1024 * 1024,
+          maxSize: 500 * 1024,
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,

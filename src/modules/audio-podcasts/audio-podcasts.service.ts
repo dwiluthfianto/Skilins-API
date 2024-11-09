@@ -388,8 +388,8 @@ export class AudioPodcastsService {
         duration: audio.AudioPodcasts[0].duration,
         file_url: audio.AudioPodcasts[0].file_url,
         genres: audio.Genres?.map((genre) => ({
-          uuid: genre.uuid,
-          name: genre.name,
+          id: genre.uuid,
+          text: genre.name,
         })),
         comments: audio.Comments?.map((comment) => ({
           uuid: comment.uuid,
