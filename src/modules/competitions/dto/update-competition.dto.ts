@@ -1,6 +1,6 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateCompetitionDto } from './create-competition.dto';
-import { IsDate, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsDate, IsOptional, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UpdateCompetitionDto extends PartialType(CreateCompetitionDto) {
@@ -25,4 +25,14 @@ export class UpdateCompetitionDto extends PartialType(CreateCompetitionDto) {
   @IsOptional()
   @IsDate()
   end_date: Date;
+
+  @ApiPropertyOptional({
+    example: ['uuid-1', 'uuid-2'],
+    type: [String],
+    description: 'Array of UUIDs of judges for the competition',
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional({ each: true })
+  judge_uuids: string[];
 }

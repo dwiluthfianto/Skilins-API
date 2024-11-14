@@ -12,12 +12,10 @@ import {
   HttpStatus,
   HttpException,
   HttpCode,
-  Req,
 } from '@nestjs/common';
 import { CompetitionsService } from './competitions.service';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { UpdateCompetitionDto } from './dto/update-competition.dto';
-import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { ApiCreatedResponse, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SupabaseService } from 'src/supabase';
 import { AuthGuard } from '@nestjs/passport';
@@ -26,8 +24,6 @@ import { Roles } from '../roles/roles.decorator';
 import { Competition } from './entities/competition.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
-import { Request } from 'express';
-import { RejectSubmissionDto } from './dto/reject-submission.dto';
 
 @ApiTags('Competition')
 @Controller({ path: 'api/v1/competitions', version: '1' })
@@ -128,51 +124,6 @@ export class CompetitionsController {
     return this.competitionsService.updateCompetition(
       competitionUuid,
       updateCompetitionDto,
-    );
-  }
-
-  @Patch('submissions/:submissionUuid/approve')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Staff')
-  @HttpCode(HttpStatus.OK)
-  approveSubmission(@Param('submissionUuid') submissionUuid: string) {
-    return this.competitionsService.approveSubmission(submissionUuid);
-  }
-
-  @Patch('submissions/:submissionUuid/reject')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Staff')
-  @HttpCode(HttpStatus.OK)
-  rejectSubmission(
-    @Param('submissionUuid') submissionUuid: string,
-    @Body() rejectSubmissionDto: RejectSubmissionDto,
-  ) {
-    return this.competitionsService.rejectSubmission(
-      submissionUuid,
-      rejectSubmissionDto,
-    );
-  }
-
-  @Post('submit')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('Student')
-  @ApiCreatedResponse({
-    type: Competition,
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'The record has been successfully created.',
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @HttpCode(HttpStatus.CREATED)
-  submitToCompetition(
-    @Req() req: Request,
-    @Body() createSubmissionDto: CreateSubmissionDto,
-  ) {
-    const user = req.user;
-    return this.competitionsService.submitToCompetition(
-      user['sub'],
-      createSubmissionDto,
     );
   }
 

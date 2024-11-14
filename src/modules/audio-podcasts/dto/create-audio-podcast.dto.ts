@@ -9,7 +9,10 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: Number,
   })
   @IsNotEmpty()
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }) => {
+    console.log('Transforming duration:', value);
+    return parseFloat(value);
+  })
   @IsNumber()
   duration: number;
 

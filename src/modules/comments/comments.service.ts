@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 // import { UpdateCommentDto } from './dto/update-comment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { DeleteCommentDto } from './dto/delete-comment.dto';
 
 @Injectable()
 export class CommentsService {
@@ -35,24 +36,28 @@ export class CommentsService {
   //   return `This action updates a #${id} comment`;
   // }
 
-  async remove(content_uuid: string, comment_by_uuid: string) {
+  async remove(contentUuid: string, deleteCommentDto: DeleteCommentDto) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { uuid: content_uuid },
+      where: { uuid: contentUuid },
     });
 
     const user = await this.prisma.users.findUniqueOrThrow({
-      where: { uuid: comment_by_uuid },
+      where: { uuid: deleteCommentDto.commentBy },
     });
 
-    const comment = await this.prisma.comments.findFirstOrThrow({
+    const comment = await this.prisma.comments.findUniqueOrThrow({
       where: {
         content_id: content.id,
         commented_by: user.id,
+        uuid: deleteCommentDto.commentUuid,
+      },
+      select: {
+        uuid: true,
       },
     });
 
     await this.prisma.comments.delete({
-      where: { id: comment.id }, // Hapus like berdasarkan ID
+      where: { uuid: comment.uuid },
     });
 
     return {

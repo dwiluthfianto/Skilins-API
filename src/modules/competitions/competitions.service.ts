@@ -1,18 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { UpdateCompetitionDto } from './dto/update-competition.dto';
-import { CreateSubmissionDto } from './dto/create-submission.dto';
-import { JudgeSubmissionDto } from './dto/judge-submission.dto';
+
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
-import { ContentsService } from '../contents/contents.service';
-import { ContentStatus, ContentType } from '@prisma/client';
-import { MailerService } from '@nestjs-modules/mailer';
-import { RejectSubmissionDto } from './dto/reject-submission.dto';
-import { AudioPodcastsService } from '../audio-podcasts/audio-podcasts.service';
-import { VideoPodcastsService } from '../video-podcasts/video-podcasts.service';
-import { PrakerinService } from '../prakerin/prakerin.service';
 
 @Injectable()
 export class CompetitionsService {
@@ -20,11 +12,6 @@ export class CompetitionsService {
   constructor(
     private prisma: PrismaService,
     private readonly slugHelper: SlugHelper,
-    private readonly contentService: ContentsService,
-    private readonly mailerService: MailerService,
-    private readonly audioPodcastService: AudioPodcastsService,
-    private readonly videoPodcastService: VideoPodcastsService,
-    private readonly prakerinService: PrakerinService,
   ) {}
 
   async createCompetition(data: CreateCompetitionDto) {
@@ -42,6 +29,21 @@ export class CompetitionsService {
         submission_deadline: data.submission_deadline,
       },
     });
+
+    if (data.judge_uuids && data.judge_uuids.length > 0) {
+      await this.prisma.$transaction(
+        data.judge_uuids.map((judge_uuid) =>
+          this.prisma.judges.create({
+            data: {
+              user: { connect: { uuid: judge_uuid } },
+              competition: { connect: { uuid: competition.uuid } },
+              score: 0,
+              submission: null,
+            },
+          }),
+        ),
+      );
+    }
 
     return {
       status: 'success',
@@ -69,6 +71,18 @@ export class CompetitionsService {
       },
     });
 
+    if (data.judge_uuids && data.judge_uuids.length > 0) {
+      await this.prisma.$transaction(
+        data.judge_uuids.map((judge_uuid) =>
+          this.prisma.judges.create({
+            data: {
+              user: { connect: { uuid: judge_uuid } },
+              competition: { connect: { uuid: competition.uuid } },
+            },
+          }),
+        ),
+      );
+    }
     return {
       status: 'success',
       message: 'Competition updated successfully!',
@@ -127,123 +141,6 @@ export class CompetitionsService {
     return {
       status: 'success',
       data: competition,
-    };
-  }
-
-  async submitToCompetition(
-    studentUuid: string,
-    createSubmissionDto: CreateSubmissionDto,
-  ) {
-    const { competition_uuid, type, audioData, videoData, prakerinData } =
-      createSubmissionDto;
-
-    const competition = await this.prisma.competitions.findUniqueOrThrow({
-      where: { uuid: competition_uuid },
-    });
-
-    if (new Date() > competition.submission_deadline) {
-      throw new BadRequestException('Submission deadline has passed.');
-    }
-
-    let content;
-
-    if (type === ContentType.AudioPodcast && audioData) {
-      content = await this.audioPodcastService.create(audioData);
-    }
-    if (type === ContentType.VideoPodcast && videoData) {
-      content = await this.videoPodcastService.create(videoData);
-    }
-    if (type === ContentType.Prakerin && prakerinData) {
-      content = await this.prakerinService.create(prakerinData);
-    }
-
-    if (!content || competition.type !== content.type) {
-      throw new BadRequestException(
-        'Content category does not match competition category.',
-      );
-    }
-
-    return await this.prisma.submissions.create({
-      data: {
-        student: { connect: { uuid: studentUuid } },
-        content: { connect: { uuid: content.data.uuid } },
-        competition: { connect: { uuid: competition_uuid } },
-      },
-    });
-  }
-
-  async approveSubmission(submissionUuid: string) {
-    const submission = await this.prisma.submissions.findUniqueOrThrow({
-      where: { uuid: submissionUuid },
-      include: { content: true, student: true },
-    });
-
-    await this.mailerService.sendMail({
-      to: submission.student.name,
-      subject: 'Submission Approved',
-      template: './submission-approved',
-      context: {
-        name: submission.student.name,
-      },
-    });
-
-    this.logger.log(
-      `Approved Submission email sent to ${submission.student.name}`,
-    );
-    return this.contentService.updateContentStatus(
-      submission.content.uuid,
-      ContentStatus.APPROVED,
-    );
-  }
-
-  async rejectSubmission(
-    submissionUuid: string,
-    rejectSubmissionDto: RejectSubmissionDto,
-  ) {
-    const submission = await this.prisma.submissions.findUniqueOrThrow({
-      where: { uuid: submissionUuid },
-      include: { content: true, student: true },
-    });
-
-    await this.mailerService.sendMail({
-      to: submission.student.name,
-      subject: `Submission Rejected`,
-      template: './submission-rejected',
-      context: {
-        name: submission.student.name,
-        reason: rejectSubmissionDto.reason,
-      },
-    });
-
-    this.logger.log(`Approved Submission sent to ${submission.student.name}`);
-    return this.contentService.updateContentStatus(
-      submission.content.uuid,
-      ContentStatus.REJECTED,
-    );
-  }
-
-  async judgeSubmission(judgeSubmissionDto: JudgeSubmissionDto) {
-    const { user_uuid, submission_uuid, score, comment } = judgeSubmissionDto;
-
-    if (score < 1 || score > 5) {
-      throw new Error('Rating value must be between 1 and 5.');
-    }
-
-    const judge = await this.prisma.judges.create({
-      data: {
-        user: { connect: { uuid: user_uuid } },
-        submission: { connect: { uuid: submission_uuid } },
-        score,
-        comment,
-      },
-    });
-
-    return {
-      status: 'success',
-      message: 'Successfully judge submission',
-      data: {
-        uuid: judge.uuid,
-      },
     };
   }
 

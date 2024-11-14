@@ -20,12 +20,4 @@ export class UpdateAudioPodcastDto extends PartialType(CreateAudioPodcastDto) {
   @IsOptional()
   @IsString()
   file_url?: string;
-
-  @ApiPropertyOptional({
-    example: '36e401d8-a949-404a-bd55-d9115bbc319a',
-    type: String,
-  })
-  @IsOptional()
-  @IsString()
-  creator_uuid?: string;
 }

@@ -17,29 +17,12 @@ export class PrakerinService {
       title,
       thumbnail,
       description,
-      genres,
       pages,
       file_url,
-      published_at,
       author_uuid,
       category_name,
       tags,
     } = createPrakerinDto;
-
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
 
     let parsedTags;
     if (Array.isArray(tags)) {
@@ -56,9 +39,21 @@ export class PrakerinService {
     }
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
+    const userData = await this.prisma.users.findUniqueOrThrow({
+      where: {
+        uuid: author_uuid,
+      },
+      include: {
+        Students: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
     const content = await this.prisma.contents.create({
       data: {
-        type: 'Prakerin',
+        type: 'PRAKERIN',
         title,
         thumbnail,
         description,
@@ -71,16 +66,10 @@ export class PrakerinService {
         category: { connect: { name: category_name } },
         Prakerin: {
           create: {
-            author: { connect: { uuid: author_uuid } },
+            author: { connect: { uuid: userData.Students[0].uuid } },
             pages,
             file_url,
-            published_at,
           },
-        },
-        Genres: {
-          connect: parsedGenres?.map((tag) => ({
-            name: tag.name,
-          })),
         },
       },
     });
@@ -90,6 +79,7 @@ export class PrakerinService {
       message: 'prakerin added successfully!',
       data: {
         uuid: content.uuid,
+        type: content.type,
       },
     };
   }
@@ -98,7 +88,7 @@ export class PrakerinService {
     const contents = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
-      where: { type: 'Prakerin' },
+      where: { type: 'PRAKERIN' },
       include: {
         category: true,
         Tags: true,
@@ -163,7 +153,7 @@ export class PrakerinService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Prakerin',
+        type: 'PRAKERIN',
         created_at: {
           gte: oneWeekAgo,
           lte: currentDate,
@@ -228,7 +218,7 @@ export class PrakerinService {
   async findOne(uuid: string) {
     await this.uuidHelper.validateUuidContent(uuid);
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { uuid, type: 'Prakerin' },
+      where: { uuid, type: 'PRAKERIN' },
       include: {
         category: true,
         Genres: true,
@@ -294,7 +284,6 @@ export class PrakerinService {
       title,
       thumbnail,
       description,
-      genres,
       pages,
       file_url,
       published_at,
@@ -306,21 +295,6 @@ export class PrakerinService {
     const contentCheck = await this.uuidHelper.validateUuidContent(contentUuid);
     const creator = await this.uuidHelper.validateUuidCreator(author_uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
-
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
 
     let parsedTags;
     if (Array.isArray(tags)) {
@@ -338,7 +312,7 @@ export class PrakerinService {
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.update({
-      where: { uuid: contentUuid, type: 'Prakerin' },
+      where: { uuid: contentUuid, type: 'PRAKERIN' },
       data: {
         title,
         thumbnail,
@@ -362,11 +336,6 @@ export class PrakerinService {
               published_at,
             },
           },
-        },
-        Genres: {
-          connect: parsedGenres?.map((tag) => ({
-            name: tag.name,
-          })),
         },
       },
     });

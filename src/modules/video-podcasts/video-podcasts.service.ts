@@ -55,9 +55,21 @@ export class VideoPodcastsService {
     }
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
+    const userData = await this.prisma.users.findUniqueOrThrow({
+      where: {
+        uuid: creator_uuid,
+      },
+      include: {
+        Students: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
     const video = await this.prisma.contents.create({
       data: {
-        type: 'VideoPodcast',
+        type: 'VIDEO',
         title,
         thumbnail,
         description,
@@ -70,7 +82,7 @@ export class VideoPodcastsService {
         category: { connect: { name: category_name } },
         VideoPodcasts: {
           create: {
-            creator: { connect: { uuid: creator_uuid } },
+            creator: { connect: { uuid: userData.Students[0].uuid } },
             duration,
             file_url,
           },
@@ -87,6 +99,7 @@ export class VideoPodcastsService {
       message: 'video successfully uploaded!',
       data: {
         uuid: video.uuid,
+        type: video.type,
       },
     };
   }
@@ -95,7 +108,7 @@ export class VideoPodcastsService {
     const videos = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
-      where: { type: 'VideoPodcast' },
+      where: { type: 'VIDEO' },
       include: {
         category: true,
         Ratings: true,
@@ -152,7 +165,7 @@ export class VideoPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'VideoPodcast',
+        type: 'VIDEO',
         category: {
           name: {
             equals: category,
@@ -217,7 +230,7 @@ export class VideoPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'VideoPodcast',
+        type: 'VIDEO',
         Genres: {
           some: {
             name: {
@@ -286,7 +299,7 @@ export class VideoPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'VideoPodcast',
+        type: 'VIDEO',
         created_at: {
           gte: oneWeekAgo,
           lte: currentDate,
@@ -451,7 +464,7 @@ export class VideoPodcastsService {
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const video = await this.prisma.contents.update({
-      where: { uuid, type: 'VideoPodcast' },
+      where: { uuid, type: 'VIDEO' },
       data: {
         title,
         thumbnail,

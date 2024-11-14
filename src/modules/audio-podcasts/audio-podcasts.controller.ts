@@ -150,13 +150,13 @@ export class AudioPodcastsController {
     return this.audioPodcastsService.findLatest(page, limit, week);
   }
 
-  @Get(':uuid')
+  @Get(':slug')
   @ApiOkResponse({
     type: AudioPodcast,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.audioPodcastsService.findOne(uuid);
+  findOne(@Param('slug') slug: string) {
+    return this.audioPodcastsService.findOneBySlug(slug);
   }
 
   @Patch(':uuid')

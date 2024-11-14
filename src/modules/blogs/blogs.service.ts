@@ -35,7 +35,7 @@ export class BlogsService {
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {
-        type: 'Blog',
+        type: 'BLOG',
         title,
         thumbnail,
         description,
@@ -72,7 +72,7 @@ export class BlogsService {
     const contents = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
-      where: { type: 'Blog' },
+      where: { type: 'BLOG' },
       include: {
         category: true,
         Tags: true,
@@ -113,7 +113,7 @@ export class BlogsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'BLOG',
         category: {
           name: {
             equals: category,
@@ -161,7 +161,7 @@ export class BlogsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'BLOG',
         Genres: {
           some: {
             name: {
@@ -215,7 +215,7 @@ export class BlogsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'BLOG',
         created_at: {
           gte: oneWeekAgo,
           lte: currentDate,
@@ -260,7 +260,7 @@ export class BlogsService {
 
   async findOneByUuid(uuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Blog', uuid },
+      where: { type: 'BLOG', uuid },
       include: {
         category: true,
         Tags: true,
@@ -325,7 +325,7 @@ export class BlogsService {
   }
   async findOneBySlug(slug: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Blog', slug },
+      where: { type: 'BLOG', slug },
       include: {
         Tags: true,
         category: true,
@@ -417,7 +417,7 @@ export class BlogsService {
     const blog = await this.prisma.contents.update({
       where: {
         uuid: content.uuid,
-        type: 'Blog',
+        type: 'BLOG',
       },
       data: {
         title,
@@ -464,7 +464,7 @@ export class BlogsService {
     }
 
     const content = await this.prisma.contents.delete({
-      where: { uuid: uuid, type: 'Blog' },
+      where: { uuid: uuid, type: 'BLOG' },
     });
     return {
       status: 'success',

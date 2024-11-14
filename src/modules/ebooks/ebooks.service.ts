@@ -62,7 +62,7 @@ export class EbooksService {
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {
-        type: 'Ebook',
+        type: 'EBOOK',
         title,
         thumbnail,
         description,
@@ -94,7 +94,7 @@ export class EbooksService {
 
     return {
       status: 'success',
-      message: 'Ebook added successfully.',
+      message: 'EBOOK added successfully.',
       data: {
         uuid: content.uuid,
       },
@@ -105,7 +105,7 @@ export class EbooksService {
     const contents = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
-      where: { type: 'Ebook' },
+      where: { type: 'EBOOK' },
       include: {
         category: true,
         Ratings: true,
@@ -169,7 +169,7 @@ export class EbooksService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'EBOOK',
         category: {
           name: {
             equals: category,
@@ -241,7 +241,7 @@ export class EbooksService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'EBOOK',
         Genres: {
           some: {
             name: {
@@ -319,7 +319,7 @@ export class EbooksService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'Ebook',
+        type: 'EBOOK',
         created_at: {
           gte: oneWeekAgo,
           lte: currentDate,
@@ -388,7 +388,7 @@ export class EbooksService {
 
   async findOne(uuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Ebook', uuid },
+      where: { type: 'EBOOK', uuid },
       include: {
         category: true,
         Genres: true,
@@ -455,7 +455,7 @@ export class EbooksService {
   }
   async findOneBySlug(slug: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Ebook', slug },
+      where: { type: 'EBOOK', slug },
       include: {
         category: true,
         Genres: true,
@@ -571,7 +571,7 @@ export class EbooksService {
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const ebook = await this.prisma.contents.update({
-      where: { uuid, type: 'Ebook' },
+      where: { uuid, type: 'EBOOK' },
       data: {
         title,
         thumbnail,
@@ -599,7 +599,7 @@ export class EbooksService {
 
     return {
       status: 'success',
-      message: 'Ebook updated succesfully.',
+      message: 'EBOOK updated succesfully.',
       data: {
         uuid: ebook.uuid,
       },
@@ -610,12 +610,12 @@ export class EbooksService {
     await this.uuidHelper.validateUuidContent(uuid);
 
     const ebook = await this.prisma.contents.delete({
-      where: { uuid, type: 'Ebook' },
+      where: { uuid, type: 'EBOOK' },
     });
 
     return {
       status: 'success',
-      message: 'Ebook deleted succesfully .',
+      message: 'EBOOK deleted succesfully .',
       data: {
         uuid: ebook.uuid,
       },

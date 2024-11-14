@@ -5,12 +5,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
-import { UpdateCommentDto } from './dto/update-comment.dto';
+import { DeleteCommentDto } from './dto/delete-comment.dto';
 
 @ApiTags('Like & Comment')
 @Controller({ path: 'api/v1/comments', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('user')
+@Roles('User', 'Student', 'Judge', 'Staff')
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
@@ -30,9 +30,8 @@ export class CommentsController {
   @Post(':uuid/remove')
   remove(
     @Param('uuid') contentUuid: string,
-    @Body() updateCommentDto: UpdateCommentDto,
+    @Body() deleteCommentDto: DeleteCommentDto,
   ) {
-    const { commented_by } = updateCommentDto;
-    return this.commentsService.remove(contentUuid, commented_by);
+    return this.commentsService.remove(contentUuid, deleteCommentDto);
   }
 }

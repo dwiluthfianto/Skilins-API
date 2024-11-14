@@ -21,7 +21,7 @@ import { join } from 'path';
         from: `"No Reply" <${process.env.MAIL_DEFAULT_EMAIL}>`,
       },
       template: {
-        dir: join(process.cwd(), 'src', 'modules', 'auth', 'templates'),
+        dir: join(process.cwd(), 'src', 'modules', 'mailer', 'templates'),
         adapter: new HandlebarsAdapter(),
         options: {
           strict: true,

@@ -53,11 +53,11 @@ export class StoriesService {
     } else {
       parsedTags = [];
     }
-    const slug = await this.slugHelper.generateUniqueSlug(title);
+    const newSlug = await this.slugHelper.generateUniqueSlug(title);
 
     const story = await this.prisma.contents.create({
       data: {
-        type: 'Story',
+        type: 'STORY',
         title,
         thumbnail,
         description,
@@ -67,7 +67,7 @@ export class StoriesService {
           })),
         },
         category: { connect: { name: category_name } },
-        slug,
+        slug: newSlug,
         Stories: {
           create: {
             author: { connect: { uuid: author_uuid } },
@@ -97,7 +97,7 @@ export class StoriesService {
   ) {
     // Cek apakah story ada
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Story', uuid: storyUuid },
+      where: { type: 'STORY', uuid: storyUuid },
       include: {
         Stories: {
           include: {
@@ -137,7 +137,7 @@ export class StoriesService {
 
   async getStoryWithEpisodes(storyUuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Story', uuid: storyUuid },
+      where: { type: 'STORY', uuid: storyUuid },
       include: {
         category: true,
         Genres: true,
@@ -201,7 +201,7 @@ export class StoriesService {
 
   async getOneEpisode(storyUuid: string, episodeUuid: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Story', uuid: storyUuid },
+      where: { type: 'STORY', uuid: storyUuid },
       include: {
         category: true,
         Genres: true,
@@ -276,7 +276,7 @@ export class StoriesService {
       updateStoryDto;
 
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'Story', uuid: contentUuid },
+      where: { type: 'STORY', uuid: contentUuid },
       include: {
         Stories: {
           include: {
@@ -324,7 +324,7 @@ export class StoriesService {
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const story = await this.prisma.contents.update({
-      where: { uuid: contentUuid, type: 'Story' },
+      where: { uuid: contentUuid, type: 'STORY' },
       data: {
         title,
         thumbnail,
@@ -346,7 +346,7 @@ export class StoriesService {
 
     return {
       status: 'success',
-      message: 'Story succesfully updated.',
+      message: 'STORY succesfully updated.',
       data: {
         uuid: story.uuid,
       },

@@ -10,9 +10,13 @@ import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { AudioPodcastsService } from '../audio-podcasts/audio-podcasts.service';
 import { VideoPodcastsService } from '../video-podcasts/video-podcasts.service';
 import { PrakerinService } from '../prakerin/prakerin.service';
+import { SubmissionService } from './submission/submission.service';
+import { SubmissionController } from './submission/submission.controller';
+import { JudgeController } from './judge/judge.controller';
+import { JudgeService } from './judge/judge.service';
 
 @Module({
-  controllers: [CompetitionsController],
+  controllers: [CompetitionsController, SubmissionController, JudgeController],
   providers: [
     CompetitionsService,
     SlugHelper,
@@ -22,6 +26,8 @@ import { PrakerinService } from '../prakerin/prakerin.service';
     AudioPodcastsService,
     VideoPodcastsService,
     PrakerinService,
+    SubmissionService,
+    JudgeService,
   ],
   imports: [
     ConfigModule.forRoot({

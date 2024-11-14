@@ -19,8 +19,7 @@ export class CreatePrakerinDto extends ContentDto {
   file_url: string;
 
   @ApiProperty({ example: '2024-09-27T08:49:44.526Z', type: Date })
-  @IsNotEmpty()
   @Transform(({ value }) => new Date(value))
   @IsDate()
-  published_at: Date;
+  published_at?: Date;
 }

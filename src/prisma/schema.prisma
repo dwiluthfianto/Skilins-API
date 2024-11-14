@@ -74,12 +74,12 @@ model Comments {
 }
 
 enum ContentType {
-  Ebook
-  VideoPodcast
-  AudioPodcast
-  Story
-  Prakerin
-  Blog
+  EBOOK
+  VIDEO
+  AUDIO
+  STORY
+  PRAKERIN
+  BLOG
 }
 
 enum ContentStatus {
@@ -144,7 +144,7 @@ model Genres {
 model VideoPodcasts {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
-  duration   Int
+  duration   Float
   file_url   String
   creator_id Int
   creator    Students @relation(fields: [creator_id], references: [id], onDelete: Cascade)
@@ -155,7 +155,7 @@ model VideoPodcasts {
 model AudioPodcasts {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
-  duration   Int
+  duration   Float
   file_url   String
   creator_id Int
   creator    Students @relation(fields: [creator_id], references: [id], onDelete: Cascade)
@@ -210,15 +210,15 @@ model Episodes {
 }
 
 model Prakerin {
-  id           Int      @id @default(autoincrement())
-  uuid         String   @unique @default(uuid())
+  id           Int       @id @default(autoincrement())
+  uuid         String    @unique @default(uuid())
   author_id    Int
-  author       Students @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  author       Students  @relation(fields: [author_id], references: [id], onDelete: Cascade)
   pages        Int
   file_url     String
-  published_at DateTime
-  content_id   Int      @unique
-  content      Contents @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  published_at DateTime?
+  content_id   Int       @unique
+  content      Contents  @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
 model Submissions {
@@ -237,16 +237,21 @@ model Submissions {
 }
 
 model Judges {
-  id            Int         @id @default(autoincrement())
-  uuid          String      @unique @default(uuid())
-  user_id       Int
-  user          Users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  submission_id Int
-  submission    Submissions @relation(fields: [submission_id], references: [id], onDelete: Cascade)
-  score         Float
-  comment       String?
-  created_at    DateTime    @default(now())
-  updated_at    DateTime    @updatedAt
+  id             Int           @id @default(autoincrement())
+  uuid           String        @unique @default(uuid())
+  user_id        Int
+  user           Users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role           String?
+  linkedin       String?
+  instagram      String?
+  competition_id Int?
+  competition    Competitions? @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  submission_id  Int?
+  submission     Submissions?  @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+  score          Float?
+  comment        String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
 }
 
 model Competitions {
@@ -263,6 +268,7 @@ model Competitions {
   submission_deadline DateTime
   Submissions         Submissions[]
   Winners             Winners[]
+  Judges              Judges[]
 }
 
 model Winners {

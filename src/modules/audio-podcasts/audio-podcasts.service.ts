@@ -55,9 +55,21 @@ export class AudioPodcastsService {
       parsedTags = [];
     }
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
+    const userData = await this.prisma.users.findUniqueOrThrow({
+      where: {
+        uuid: creator_uuid,
+      },
+      include: {
+        Students: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
     const audio = await this.prisma.contents.create({
       data: {
-        type: 'AudioPodcast',
+        type: 'AUDIO',
         title,
         thumbnail,
         description,
@@ -70,8 +82,8 @@ export class AudioPodcastsService {
         slug: newSlug,
         AudioPodcasts: {
           create: {
-            creator: { connect: { uuid: creator_uuid } },
-            duration: duration,
+            creator: { connect: { uuid: userData.Students[0].uuid } },
+            duration,
             file_url,
           },
         },
@@ -87,6 +99,7 @@ export class AudioPodcastsService {
       message: 'audio successfully uploaded!',
       data: {
         uuid: audio.uuid,
+        type: audio.type,
       },
     };
   }
@@ -95,7 +108,7 @@ export class AudioPodcastsService {
     const audios = await this.prisma.contents.findMany({
       skip: (page - 1) * limit,
       take: limit,
-      where: { type: 'AudioPodcast' },
+      where: { type: 'AUDIO' },
       include: {
         category: true,
         Ratings: true,
@@ -152,7 +165,7 @@ export class AudioPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'AudioPodcast',
+        type: 'AUDIO',
         category: {
           name: {
             equals: category,
@@ -216,7 +229,7 @@ export class AudioPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'AudioPodcast',
+        type: 'AUDIO',
         Genres: {
           some: {
             name: {
@@ -287,7 +300,7 @@ export class AudioPodcastsService {
       skip: (page - 1) * limit,
       take: limit,
       where: {
-        type: 'AudioPodcast',
+        type: 'AUDIO',
         created_at: {
           gte: oneWeekAgo,
           lte: currentDate,
@@ -353,7 +366,17 @@ export class AudioPodcastsService {
         Genres: true,
         Ratings: true,
         Tags: true,
-        Comments: true,
+        Comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
         AudioPodcasts: {
           include: {
             creator: true,
@@ -391,12 +414,84 @@ export class AudioPodcastsService {
           id: genre.uuid,
           text: genre.name,
         })),
-        comments: audio.Comments?.map((comment) => ({
+        comments: audio.Comments.map((comment) => ({
           uuid: comment.uuid,
           subject: comment.comment_content,
           created_at: comment.created_at,
           updated_at: comment.updated_at,
-          commented_by: comment.commented_by,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
+        })),
+        avg_rating,
+      },
+    };
+  }
+
+  async findOneBySlug(slug: string) {
+    const audio = await this.prisma.contents.findUniqueOrThrow({
+      where: { slug },
+      include: {
+        category: true,
+        Genres: true,
+        Ratings: true,
+        Tags: true,
+        Comments: {
+          include: {
+            user: {
+              select: {
+                uuid: true,
+                full_name: true,
+                profile_url: true,
+              },
+            },
+          },
+        },
+        AudioPodcasts: {
+          include: {
+            creator: true,
+          },
+        },
+      },
+    });
+
+    const avg_rating = await this.prisma.ratings.aggregate({
+      where: { content_id: audio.id },
+      _avg: {
+        rating_value: true,
+      },
+    });
+
+    return {
+      status: 'success',
+      data: {
+        uuid: audio.uuid,
+        thumbnail: audio.thumbnail,
+        title: audio.title,
+        description: audio.description,
+        slug: audio.slug,
+        tags: audio.Tags.map((tag) => ({
+          id: tag.uuid,
+          text: tag.name,
+        })),
+        created_at: audio.created_at,
+        updated_at: audio.updated_at,
+        category: audio.category.name,
+        creator: audio.AudioPodcasts[0].creator.name,
+        duration: audio.AudioPodcasts[0].duration,
+        file_url: audio.AudioPodcasts[0].file_url,
+        genres: audio.Genres?.map((genre) => ({
+          id: genre.uuid,
+          text: genre.name,
+        })),
+        comments: audio.Comments.map((comment) => ({
+          uuid: comment.uuid,
+          subject: comment.comment_content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          commented_by_uuid: comment.user.uuid,
+          commented_by: comment.user.full_name,
+          profile: comment.user.profile_url,
         })),
         avg_rating,
       },
@@ -412,12 +507,10 @@ export class AudioPodcastsService {
       category_name,
       duration,
       file_url,
-      creator_uuid,
       genres,
     } = updateAudioPodcastDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
-    const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
 
     let parsedGenres;
@@ -450,8 +543,9 @@ export class AudioPodcastsService {
     }
 
     const slug = await this.slugHelper.generateUniqueSlug(title);
+
     const audio = await this.prisma.contents.update({
-      where: { uuid: uuid, type: 'AudioPodcast' },
+      where: { uuid: uuid, type: 'AUDIO' },
       data: {
         title,
         thumbnail,
@@ -467,7 +561,6 @@ export class AudioPodcastsService {
           update: {
             where: { content_id: content.id },
             data: {
-              creator_id: creator.id,
               duration: duration || 0,
               file_url,
             },

@@ -22,44 +22,54 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      console.log('Prisma Error Code:', exception.code); // Debug log
+
       switch (exception.code) {
         case 'P2025': // Record not found
           message = 'Record not found or invalid UUID.';
           status = HttpStatus.NOT_FOUND;
           break;
-
         case 'P2002': // Unique constraint error
           message = 'Unique constraint violation occurred.';
           status = HttpStatus.CONFLICT;
           break;
-
         case 'P2003': // Foreign key constraint failed
           message =
             'Foreign key constraint failed. Please check your references.';
           status = HttpStatus.BAD_REQUEST;
           break;
-
         case 'P2004': // Transaction failed
           message = 'Transaction failed. Please try again.';
           status = HttpStatus.BAD_REQUEST;
           break;
-
         case 'P2005': // Invalid input
           message = 'Invalid input provided. Please check your data.';
           status = HttpStatus.BAD_REQUEST;
           break;
+        default:
+          message = exception.message;
+          status = HttpStatus.INTERNAL_SERVER_ERROR;
+          break;
       }
     } else if (exception instanceof Prisma.PrismaClientValidationError) {
-      message = 'Validation error occurred. Please check the provided data.';
+      message = exception.message;
       status = HttpStatus.BAD_REQUEST;
     }
 
-    response.status(status).json({
+    const errorResponse = {
       statusCode: status,
-      message: message,
-      error: this.getErrorMessage(exception),
       timestamp: new Date().toISOString(),
-    });
+      path: ctx.getRequest().url,
+      message,
+      details:
+        exception instanceof Prisma.PrismaClientKnownRequestError
+          ? exception.meta
+          : (exception as any).message ||
+            exception ||
+            this.getErrorMessage(exception),
+    };
+
+    response.status(status).json(errorResponse);
   }
 
   private getErrorMessage(
