@@ -46,7 +46,7 @@ export class SubmissionService {
       content = await this.prakerinService.create(prakerinData);
     }
 
-    if (!content || competition.type !== content.type) {
+    if (!content || competition.type !== content.data.type) {
       throw new BadRequestException(
         'Content category does not match competition category.',
       );

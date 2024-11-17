@@ -12,6 +12,7 @@ import {
   HttpStatus,
   HttpException,
   HttpCode,
+  Query,
 } from '@nestjs/common';
 import { CompetitionsService } from './competitions.service';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
@@ -24,6 +25,7 @@ import { Roles } from '../roles/roles.decorator';
 import { Competition } from './entities/competition.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { FindCompetitionQueryDto } from './dto/find-competition-query.dto';
 
 @ApiTags('Competition')
 @Controller({ path: 'api/v1/competitions', version: '1' })
@@ -101,13 +103,37 @@ export class CompetitionsController {
   }
 
   @Get()
-  findAll() {
-    return this.competitionsService.getAllCompetitions();
+  findAll(@Query() query: FindCompetitionQueryDto) {
+    const { page, limit, search, type } = query;
+    if (type) {
+      return this.competitionsService.getCompetitionByType(page, limit, type);
+    }
+    return this.competitionsService.getAllCompetitions(page, limit, search);
+  }
+
+  @Get('active')
+  findActiveCompetition(@Query() query: FindCompetitionQueryDto) {
+    const { page, limit, search } = query;
+    return this.competitionsService.getActiveCompetitions(page, limit, search);
+  }
+
+  @Get('finished')
+  findFinishedCompetition(@Query() query: FindCompetitionQueryDto) {
+    const { page, limit, search } = query;
+    return this.competitionsService.getFinishedCompetitions(
+      page,
+      limit,
+      search,
+    );
   }
 
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
-    return this.competitionsService.getCompetitionBySlug(slug);
+  findOne(
+    @Param('slug') slug: string,
+    @Query('status') status: string,
+    @Query('type') type: string,
+  ) {
+    return this.competitionsService.getCompetitionBySlug(slug, type, status);
   }
 
   @Patch(':competitionUuid')

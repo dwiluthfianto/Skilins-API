@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 import { ContentStatus } from '@prisma/client';
+import parseArrayInput from 'src/common/utils/parse-array';
 
 @Injectable()
 export class EbooksService {
@@ -30,35 +31,8 @@ export class EbooksService {
       genres,
     } = createContentDto;
 
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
-
+    const parsedGenres = parseArrayInput(genres);
+    const parsedTags = parseArrayInput(tags);
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
       data: {

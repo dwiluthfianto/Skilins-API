@@ -144,7 +144,6 @@ model Genres {
 model VideoPodcasts {
   id         Int      @id @default(autoincrement())
   uuid       String   @unique @default(uuid())
-  duration   Float
   file_url   String
   creator_id Int
   creator    Students @relation(fields: [creator_id], references: [id], onDelete: Cascade)

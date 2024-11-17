@@ -12,6 +12,7 @@ import {
   HttpStatus,
   UploadedFiles,
   Query,
+  Req,
 } from '@nestjs/common';
 import { PrakerinService } from './prakerin.service';
 import { CreatePrakerinDto } from './dto/create-prakerin.dto';
@@ -24,6 +25,9 @@ import { Prakerin } from './entities/prakerin.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { Request } from 'express';
+import { ContentUserDto } from '../contents/dto/content-user.dto';
 
 @Controller('prakerin')
 export class PrakerinController {
@@ -117,8 +121,40 @@ export class PrakerinController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 25) {
+  findAll(@Query() query: FindContentQueryDto) {
+    const { limit, page, category, tag, genre } = query;
+    if (category) {
+      return this.prakerinService.findByCategory(page, limit, category);
+    }
+
+    if (tag) {
+      return this.prakerinService.findByCategory(page, limit, tag);
+    }
+
+    if (genre) {
+      return this.prakerinService.findByCategory(page, limit, genre);
+    }
+
     return this.prakerinService.findAll(page, limit);
+  }
+
+  @Get('student')
+  @ApiOkResponse({
+    type: Prakerin,
+    isArray: true,
+  })
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Student')
+  @HttpCode(HttpStatus.OK)
+  async findUserPrakerin(@Req() req: Request, @Query() query: ContentUserDto) {
+    const user = req.user;
+    const { page, limit, status } = query;
+    return await this.prakerinService.findUserContent(
+      user['sub'],
+      page,
+      limit,
+      status,
+    );
   }
 
   @Get('latest')
@@ -135,13 +171,13 @@ export class PrakerinController {
     return this.prakerinService.findLatest(page, limit, days);
   }
 
-  @Get(':uuid')
+  @Get(':slug')
   @ApiOkResponse({
     type: Prakerin,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.prakerinService.findOne(uuid);
+  findOne(@Param('slug') slug: string) {
+    return this.prakerinService.findOneBySlug(slug);
   }
 
   @Patch(':uuid')

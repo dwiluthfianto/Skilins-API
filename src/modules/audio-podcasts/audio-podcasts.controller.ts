@@ -12,6 +12,7 @@ import {
   UseGuards,
   UploadedFiles,
   Query,
+  Req,
 } from '@nestjs/common';
 import { AudioPodcastsService } from './audio-podcasts.service';
 import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
@@ -24,6 +25,9 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { ContentUserDto } from '../contents/dto/content-user.dto';
+import { Request } from 'express';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/v1/contents/audios', version: '1' })
@@ -121,19 +125,41 @@ export class AudioPodcastsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('category') category: string,
-    @Query('tag') tag: string,
-  ) {
+  findAll(@Query() query: FindContentQueryDto) {
+    const { page, limit, category, tag, genre, search } = query;
+
     if (category) {
       return this.audioPodcastsService.findByCategory(page, limit, category);
-    } else if (tag) {
-      return this.audioPodcastsService.findByTag(page, limit, tag);
-    } else {
-      return this.audioPodcastsService.findAll(page, limit);
     }
+
+    if (tag) {
+      return this.audioPodcastsService.findByTag(page, limit, tag);
+    }
+
+    if (genre) {
+      return this.audioPodcastsService.findByGenre(page, limit, genre);
+    }
+
+    return this.audioPodcastsService.findAll(page, limit, search);
+  }
+
+  @Get('student')
+  @ApiOkResponse({
+    type: AudioPodcast,
+    isArray: true,
+  })
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Student')
+  @HttpCode(HttpStatus.OK)
+  async findUserAudio(@Req() req: Request, @Query() query: ContentUserDto) {
+    const user = req.user;
+    const { page, limit, status } = query;
+    return await this.audioPodcastsService.findUserContent(
+      user['sub'],
+      page,
+      limit,
+      status,
+    );
   }
 
   @Get('latest')

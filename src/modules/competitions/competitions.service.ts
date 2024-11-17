@@ -5,6 +5,8 @@ import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { UpdateCompetitionDto } from './dto/update-competition.dto';
 
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import parseArrayInput from 'src/common/utils/parse-array';
+import { ContentStatus, ContentType, Prisma } from '@prisma/client';
 
 @Injectable()
 export class CompetitionsService {
@@ -15,7 +17,10 @@ export class CompetitionsService {
   ) {}
 
   async createCompetition(data: CreateCompetitionDto) {
-    const newSlug = await this.slugHelper.generateUniqueSlug(data.title);
+    const newSlug = await this.slugHelper.generateUniqueSlugCompe(data.title);
+
+    const judge_uuids = parseArrayInput(data.judge_uuids);
+
     const competition = await this.prisma.competitions.create({
       data: {
         thumbnail: data.thumbnail,
@@ -30,19 +35,26 @@ export class CompetitionsService {
       },
     });
 
-    if (data.judge_uuids && data.judge_uuids.length > 0) {
-      await this.prisma.$transaction(
-        data.judge_uuids.map((judge_uuid) =>
-          this.prisma.judges.create({
+    if (judge_uuids && judge_uuids.length > 0) {
+      const updateOperations: Prisma.PrismaPromise<any>[] = [];
+
+      for (const judge_uuid of judge_uuids) {
+        const user = await this.prisma.users.findUniqueOrThrow({
+          where: { uuid: judge_uuid.id },
+          select: { Judges: { select: { uuid: true } } },
+        });
+
+        updateOperations.push(
+          this.prisma.judges.update({
+            where: { uuid: user.Judges[0].uuid },
             data: {
-              user: { connect: { uuid: judge_uuid } },
               competition: { connect: { uuid: competition.uuid } },
-              score: 0,
-              submission: null,
             },
           }),
-        ),
-      );
+        );
+      }
+
+      await this.prisma.$transaction(updateOperations);
     }
 
     return {
@@ -56,6 +68,7 @@ export class CompetitionsService {
 
   async updateCompetition(uuid: string, data: UpdateCompetitionDto) {
     const newSlug = await this.slugHelper.generateUniqueSlug(data.title);
+    const judge_uuids = parseArrayInput(data.judge_uuids);
     const competition = await this.prisma.competitions.update({
       where: { uuid },
       data: {
@@ -71,16 +84,21 @@ export class CompetitionsService {
       },
     });
 
-    if (data.judge_uuids && data.judge_uuids.length > 0) {
+    if (judge_uuids && judge_uuids.length > 0) {
       await this.prisma.$transaction(
-        data.judge_uuids.map((judge_uuid) =>
-          this.prisma.judges.create({
+        judge_uuids.map((judge_uuid) => {
+          const user = this.prisma.users.findUniqueOrThrow({
+            where: { uuid: judge_uuid },
+            select: { Judges: { select: { uuid: true } } },
+          });
+
+          return this.prisma.judges.update({
+            where: { uuid: user.Judges[0].uuid },
             data: {
-              user: { connect: { uuid: judge_uuid } },
               competition: { connect: { uuid: competition.uuid } },
             },
-          }),
-        ),
+          });
+        }),
       );
     }
     return {
@@ -92,32 +110,166 @@ export class CompetitionsService {
     };
   }
 
-  async getAllCompetitions() {
-    const competitions = await this.prisma.competitions.findMany();
+  async fetchCompetitions(page: number, limit: number, filter: object = {}) {
+    const competitions = await this.prisma.competitions.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        ...filter,
+      },
+    });
+    const data = competitions.map((competition) => ({
+      uuid: competition.uuid,
+      thumbnail: competition.thumbnail,
+      title: competition.title,
+      slug: competition.slug,
+      type: competition.type,
+      start_date: competition.start_date,
+      end_date: competition.end_date,
+      submission_deadline: competition.submission_deadline,
+    }));
 
+    const total = await this.prisma.competitions.count();
+
+    return { data, total };
+  }
+
+  async getPaginatedResponse(
+    page: number,
+    limit: number,
+    total: number,
+    data: any[],
+  ) {
     return {
       status: 'success',
-      data: competitions.map((competition) => ({
-        uuid: competition.uuid,
-        thumbnail: competition.thumbnail,
-        title: competition.title,
-        slug: competition.slug,
-        type: competition.type,
-        start_date: competition.start_date,
-        end_date: competition.end_date,
-        submission_date: competition.submission_deadline,
-      })),
+      data,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
 
-  async getCompetitionBySlug(slug: string) {
+  async getAllCompetitions(page?: number, limit?: number, search: string = '') {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+    };
+    const { data, total } = await this.fetchCompetitions(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async getCompetitionByType(page?: number, limit?: number, type: string = '') {
+    const filter = {
+      type: {
+        contains: type,
+        mode: 'insensitive',
+      },
+    };
+    const { data, total } = await this.fetchCompetitions(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async getActiveCompetitions(
+    page?: number,
+    limit?: number,
+    search: string = '',
+  ) {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+      end_date: {
+        gte: new Date(),
+      },
+    };
+    const { data, total } = await this.fetchCompetitions(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async getFinishedCompetitions(
+    page?: number,
+    limit?: number,
+    search: string = '',
+  ) {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+      end_date: {
+        lt: new Date(),
+      },
+    };
+    const { data, total } = await this.fetchCompetitions(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async getCompetitionBySlug(
+    slug: string,
+    type: string,
+    status: string = ContentStatus.APPROVED,
+  ) {
     const competition = await this.prisma.competitions.findUniqueOrThrow({
-      where: { slug },
+      where: { slug, type: type.toUpperCase() as ContentType },
       include: {
         Submissions: {
-          include: { judges: true, student: true, content: true },
+          where: {
+            content: {
+              status: status as ContentStatus,
+            },
+          },
+          select: {
+            id: false,
+            student_id: false,
+            content_id: false,
+            competition_id: false,
+            uuid: true,
+            content: {
+              select: {
+                uuid: true,
+                type: true,
+                title: true,
+                thumbnail: true,
+                slug: true,
+              },
+            },
+          },
         },
-        Winners: true,
+        Judges: {
+          select: {
+            uuid: true,
+            user: {
+              select: {
+                profile_url: true,
+                full_name: true,
+              },
+            },
+            role: true,
+            linkedin: true,
+            instagram: true,
+          },
+        },
+        Winners: {
+          include: {
+            submission: {
+              select: {
+                content: {
+                  select: {
+                    title: true,
+                  },
+                },
+                student: {
+                  select: {
+                    name: true,
+                    major: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -132,8 +284,9 @@ export class CompetitionsService {
       where: { uuid },
       include: {
         Submissions: {
-          include: { judges: true, student: true, content: true },
+          include: { student: true, content: true },
         },
+        Judges: true,
         Winners: true,
       },
     });

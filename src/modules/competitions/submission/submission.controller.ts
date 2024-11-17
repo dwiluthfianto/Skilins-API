@@ -25,7 +25,7 @@ import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from 'src/modules/contents/content-file.enum';
 
 @ApiTags('Submission')
-@Controller({ path: 'api/v1/competitions', version: '1' })
+@Controller({ path: 'api/v1/competitions/submissions', version: '1' })
 export class SubmissionController {
   constructor(
     private readonly submissionService: SubmissionService,

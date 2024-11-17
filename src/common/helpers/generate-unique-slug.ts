@@ -31,4 +31,29 @@ export class SlugHelper {
 
     return slug;
   }
+  async generateUniqueSlugCompe(title: string): Promise<string> {
+    const baseSlug = slugify(title, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@]/g,
+    });
+    let slug = baseSlug;
+    let counter = 1;
+
+    // Cek apakah slug sudah ada di database
+    let existingContent = await this.prisma.competitions.findUnique({
+      where: { slug },
+    });
+
+    // Jika sudah ada, tambahkan angka hingga slug menjadi unik
+    while (existingContent) {
+      slug = `${baseSlug}-${counter}`;
+      existingContent = await this.prisma.competitions.findUnique({
+        where: { slug },
+      });
+      counter++;
+    }
+
+    return slug;
+  }
 }

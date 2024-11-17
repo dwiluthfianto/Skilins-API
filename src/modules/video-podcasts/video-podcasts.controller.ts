@@ -12,6 +12,8 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  Req,
+  ParseFilePipeBuilder,
 } from '@nestjs/common';
 import { VideoPodcastsService } from './video-podcasts.service';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
@@ -29,6 +31,9 @@ import { Roles } from '../roles/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { ContentUserDto } from '../contents/dto/content-user.dto';
+import { Request } from 'express';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/v1/contents/videos', version: '1' })
@@ -47,10 +52,23 @@ export class VideoPodcastsController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('thumbnail'))
   async create(
-    @UploadedFile() thumbnail: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: '.(png|jpeg|jpg)',
+        })
+        .addMaxSizeValidator({
+          maxSize: 2 * 1024 * 1024,
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    thumbnail: Express.Multer.File,
     @Body() createVideoPodcastDto: CreateVideoPodcastDto,
   ) {
     let thumbFilename: string;
+
     try {
       if (thumbnail && thumbnail.size > 0) {
         const {
@@ -99,20 +117,40 @@ export class VideoPodcastsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('category') category: string,
-    @Query('tag') tag: string,
-  ) {
+  findAll(@Query() query: FindContentQueryDto) {
+    const { limit, page, tag, category, genre } = query;
     if (category) {
       return this.videoPodcastsService.findByCategory(page, limit, category);
-    } else if (tag) {
-      return this.videoPodcastsService.findByTag(page, limit, tag);
-    } else {
-      return this.videoPodcastsService.findAll(page, limit);
     }
+    if (tag) {
+      return this.videoPodcastsService.findByTag(page, limit, tag);
+    }
+
+    if (genre) {
+      return this.videoPodcastsService.findByTag(page, limit, genre);
+    }
+    return this.videoPodcastsService.findAll(page, limit);
   }
+
+  @Get('student')
+  @ApiOkResponse({
+    type: VideoPodcast,
+    isArray: true,
+  })
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Student')
+  @HttpCode(HttpStatus.OK)
+  async findUserVideo(@Req() req: Request, @Query() query: ContentUserDto) {
+    const user = req.user;
+    const { page, limit, status } = query;
+    return await this.videoPodcastsService.findUserContent(
+      user['sub'],
+      page,
+      limit,
+      status,
+    );
+  }
+
   @Get('latest')
   @ApiOkResponse({
     type: VideoPodcast,
@@ -127,13 +165,13 @@ export class VideoPodcastsController {
     return this.videoPodcastsService.findLatest(page, limit, week);
   }
 
-  @Get(':uuid')
+  @Get(':slug')
   @ApiOkResponse({
     type: VideoPodcast,
   })
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('uuid') uuid: string) {
-    return this.videoPodcastsService.findOne(uuid);
+  findOne(@Param('slug') slug: string) {
+    return this.videoPodcastsService.findOneBySlug(slug);
   }
 
   @Patch(':uuid')
@@ -146,7 +184,8 @@ export class VideoPodcastsController {
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('uuid') uuid: string,
-    @UploadedFile() thumbnail: Express.Multer.File,
+    @UploadedFile()
+    thumbnail: Express.Multer.File,
     @Body() updateVideoPodcastDto: UpdateVideoPodcastDto,
   ) {
     const audio = await this.videoPodcastsService.update(

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ContentStatus } from '@prisma/client';

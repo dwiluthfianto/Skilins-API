@@ -9,10 +9,8 @@ import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
 export class JudgeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllJudges(page: number, limit: number, search: string) {
+  async findAllJudges(page?: number, limit?: number, search: string = '') {
     const judges = await this.prisma.users.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
       where: {
         roles: { name: RoleType.Judge },
         full_name: {
@@ -38,6 +36,7 @@ export class JudgeService {
           },
         },
       },
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
     });
 
     const total = await this.prisma.users.count({
@@ -65,9 +64,9 @@ export class JudgeService {
           competition: judgeData.competition?.title,
         };
       }),
-      totalPages: Math.ceil(total / limit),
-      page,
-      lastPage: Math.ceil(total / limit),
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
 

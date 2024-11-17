@@ -4,6 +4,8 @@ import { UpdateAudioPodcastDto } from './dto/update-audio-podcast.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import parseArrayInput from 'src/common/utils/parse-array';
+import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class AudioPodcastsService {
@@ -26,34 +28,9 @@ export class AudioPodcastsService {
       genres,
     } = createAudioPodcastDto;
 
-    let parsedGenres;
+    const parsedGenres = parseArrayInput(genres);
+    const parsedTags = parseArrayInput(tags);
 
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const userData = await this.prisma.users.findUniqueOrThrow({
       where: {
@@ -104,15 +81,18 @@ export class AudioPodcastsService {
     };
   }
 
-  async findAll(page: number, limit: number) {
+  async fetchAudios(page?: number, limit?: number, filter: object = {}) {
     const audios = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: { type: 'AUDIO' },
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        type: 'AUDIO',
+        ...filter,
+      },
       include: {
         category: true,
-        Ratings: true,
         Tags: true,
+        Genres: true,
+        Ratings: true,
         AudioPodcasts: {
           include: {
             creator: true,
@@ -132,6 +112,7 @@ export class AudioPodcastsService {
           },
         });
         const avg_rating = avgRatingResult._avg.rating_value || 0;
+
         return {
           uuid: audio.uuid,
           thumbnail: audio.thumbnail,
@@ -142,220 +123,130 @@ export class AudioPodcastsService {
             id: tag.uuid,
             text: tag.name,
           })),
+          genres: audio.Genres.map((genre) => ({
+            id: genre.uuid,
+            text: genre.name,
+          })),
+          status: audio.status,
           created_at: audio.created_at,
           updated_at: audio.updated_at,
           category: audio.category.name,
-          creator: audio.AudioPodcasts[0].creator.name,
-          duration: audio.AudioPodcasts[0].duration,
-          file_url: audio.AudioPodcasts[0].file_url,
+          creator: audio.AudioPodcasts[0]?.creator?.name || null,
+          duration: audio.AudioPodcasts[0]?.duration || null,
+          file_url: audio.AudioPodcasts[0]?.file_url || null,
           avg_rating,
         };
       }),
     );
+
+    return { data, total };
+  }
+
+  async getPaginatedResponse(
+    page: number,
+    limit: number,
+    total: number,
+    data: any[],
+  ) {
     return {
       status: 'success',
       data,
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
+
+  async findAll(page?: number, limit?: number, search: string = '') {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+    };
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
   async findByCategory(page: number, limit: number, category: string) {
-    const audios = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'AUDIO',
-        category: {
+    const filter = {
+      category: {
+        name: {
+          equals: category,
+          mode: 'insensitive',
+        },
+      },
+    };
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findByGenre(page: number, limit: number, genre: string) {
+    const filter = {
+      Genres: {
+        some: {
           name: {
-            equals: category,
+            equals: genre,
             mode: 'insensitive',
           },
         },
       },
-      include: {
-        category: true,
-        Ratings: true,
-        Tags: true,
-        AudioPodcasts: {
-          include: {
-            creator: true,
-          },
-        },
-      },
-    });
-
-    const total = await this.prisma.audioPodcasts.count();
-
-    const data = await Promise.all(
-      audios.map(async (audio) => {
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: audio.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0;
-        return {
-          uuid: audio.uuid,
-          thumbnail: audio.thumbnail,
-          title: audio.title,
-          description: audio.description,
-          slug: audio.slug,
-          tags: audio.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: audio.created_at,
-          updated_at: audio.updated_at,
-          category: audio.category.name,
-          creator: audio.AudioPodcasts[0].creator.name,
-          duration: audio.AudioPodcasts[0].duration,
-          file_url: audio.AudioPodcasts[0].file_url,
-          avg_rating,
-        };
-      }),
-    );
-    return {
-      status: 'success',
-      data,
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
     };
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
-  async findByTag(page: number, limit: number, genre: string) {
-    const audios = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'AUDIO',
-        Genres: {
-          some: {
-            name: {
-              equals: genre,
-              mode: 'insensitive',
-            },
+
+  async findByTag(page: number, limit: number, tag: string) {
+    const filter = {
+      Tags: {
+        some: {
+          name: {
+            equals: tag,
+            mode: 'insensitive',
           },
         },
       },
-      include: {
-        category: true,
-        Ratings: true,
-        Tags: true,
-        AudioPodcasts: {
-          include: {
-            creator: true,
-          },
-        },
-      },
-    });
-
-    const total = await this.prisma.audioPodcasts.count();
-
-    const data = await Promise.all(
-      audios.map(async (audio) => {
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: audio.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0;
-        return {
-          uuid: audio.uuid,
-          thumbnail: audio.thumbnail,
-          title: audio.title,
-          description: audio.description,
-          slug: audio.slug,
-          tags: audio.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: audio.created_at,
-          updated_at: audio.updated_at,
-          category: audio.category.name,
-          creator: audio.AudioPodcasts[0].creator.name,
-          duration: audio.AudioPodcasts[0].duration,
-          file_url: audio.AudioPodcasts[0].file_url,
-          avg_rating,
-        };
-      }),
-    );
-    return {
-      status: 'success',
-      data,
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
     };
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
+
+  async findUserContent(
+    authorUuid: string,
+    page: number,
+    limit: number,
+    status: string = ContentStatus.APPROVED,
+  ) {
+    const filter = {
+      AudioPodcasts: {
+        some: {
+          creator: {
+            user: { uuid: authorUuid },
+          },
+        },
+      },
+      status: status as ContentStatus,
+    };
+
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
   async findLatest(page: number, limit: number, week: number) {
     const currentDate = new Date();
-    const oneWeekAgo = new Date();
     const weeks = week * 7;
-
-    oneWeekAgo.setDate(currentDate.getDate() - weeks);
-    const audios = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'AUDIO',
-        created_at: {
-          gte: oneWeekAgo,
-          lte: currentDate,
-        },
-      },
-      include: {
-        category: true,
-        Tags: true,
-        Ratings: true,
-        AudioPodcasts: {
-          include: {
-            creator: true,
-          },
-        },
-      },
-    });
-
-    const total = await this.prisma.audioPodcasts.count();
-
-    const data = await Promise.all(
-      audios.map(async (audio) => {
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: audio.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0;
-        return {
-          uuid: audio.uuid,
-          thumbnail: audio.thumbnail,
-          title: audio.title,
-          description: audio.description,
-          slug: audio.slug,
-          tags: audio.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: audio.created_at,
-          updated_at: audio.updated_at,
-          category: audio.category.name,
-          creator: audio.AudioPodcasts[0].creator.name,
-          duration: audio.AudioPodcasts[0].duration,
-          file_url: audio.AudioPodcasts[0].file_url,
-          avg_rating,
-        };
-      }),
+    const oneWeekAgo = new Date(
+      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
     );
-    return {
-      status: 'success',
-      data,
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
+
+    const filter = {
+      created_at: {
+        gte: oneWeekAgo,
+        lte: currentDate,
+      },
     };
+    const { data, total } = await this.fetchAudios(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
 
   async findOne(uuid: string) {
@@ -398,6 +289,7 @@ export class AudioPodcastsService {
         uuid: audio.uuid,
         thumbnail: audio.thumbnail,
         title: audio.title,
+        status: audio.status,
         description: audio.description,
         slug: audio.slug,
         tags: audio.Tags.map((tag) => ({
@@ -468,6 +360,7 @@ export class AudioPodcastsService {
         uuid: audio.uuid,
         thumbnail: audio.thumbnail,
         title: audio.title,
+        status: audio.status,
         description: audio.description,
         slug: audio.slug,
         tags: audio.Tags.map((tag) => ({
@@ -507,40 +400,16 @@ export class AudioPodcastsService {
       category_name,
       duration,
       file_url,
+      creator_uuid,
       genres,
     } = updateAudioPodcastDto;
 
     const content = await this.uuidHelper.validateUuidContent(uuid);
     const category = await this.uuidHelper.validateUuidCategory(category_name);
+    const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
 
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
+    const parsedGenres = parseArrayInput(genres);
+    const parsedTags = parseArrayInput(tags);
 
     const slug = await this.slugHelper.generateUniqueSlug(title);
 
@@ -559,7 +428,10 @@ export class AudioPodcastsService {
         category: { connect: { uuid: category.uuid } },
         AudioPodcasts: {
           update: {
-            where: { content_id: content.id },
+            where: {
+              content_id: content.id,
+              creator_id: creator.Students[0].id,
+            },
             data: {
               duration: duration || 0,
               file_url,

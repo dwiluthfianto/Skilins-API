@@ -22,9 +22,17 @@ export class UuidHelper {
   }
 
   async validateUuidCreator(uuid: string) {
-    const creator = await this.prisma.students.findUniqueOrThrow({
+    const creator = await this.prisma.users.findUniqueOrThrow({
       where: { uuid },
-      select: { id: true, uuid: true },
+      select: {
+        id: true,
+        uuid: true,
+        Students: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
     return creator;
   }

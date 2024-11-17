@@ -4,13 +4,6 @@ import { IsOptional } from 'class-validator';
 
 export class UpdateVideoPodcastDto extends PartialType(CreateVideoPodcastDto) {
   @ApiPropertyOptional({
-    example: 2.3,
-    type: Number,
-  })
-  @IsOptional()
-  duration?: number;
-
-  @ApiPropertyOptional({
     example: 'https://example.com/video.mp4',
     type: String,
   })
