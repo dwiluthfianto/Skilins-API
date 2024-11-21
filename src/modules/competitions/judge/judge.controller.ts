@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -17,6 +18,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/modules/roles/roles.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
+import { UpdateJudgeDto } from '../dto/update-judge.dto';
 
 @ApiTags('Judge')
 @Controller({ path: 'api/v1/judges', version: '1' })
@@ -24,7 +26,7 @@ import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
 export class JudgeController {
   constructor(private readonly judgeService: JudgeService) {}
 
-  @Get('')
+  @Get()
   @Roles('Staff')
   @HttpCode(HttpStatus.OK)
   async findAllJudges(
@@ -42,6 +44,21 @@ export class JudgeController {
   }
 
   @Patch(':judgeUuid')
+  @Roles('Staff')
+  async updateJudge(
+    @Param('judgeUuid') judgeUuid: string,
+    @Body() updateJudgeDto: UpdateJudgeDto,
+  ) {
+    return await this.judgeService.updateInfoJudge(judgeUuid, updateJudgeDto);
+  }
+
+  @Delete(':judgeUuid')
+  @Roles('Staff')
+  async removeJudge(@Param('judgeUuid') judgeUuid: string) {
+    return await this.judgeService.removeJudge(judgeUuid);
+  }
+
+  @Patch(':judgeUuid/submission')
   @Roles('Judge')
   async evaluateSubmission(
     @Param('judgeUuid') judgeUuid: string,

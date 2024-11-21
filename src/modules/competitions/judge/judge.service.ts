@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { RoleType } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
+import { UpdateJudgeDto } from '../dto/update-judge.dto';
 
 @Injectable()
 export class JudgeService {
@@ -98,6 +99,77 @@ export class JudgeService {
       data: {
         uuid: newJudge.uuid,
       },
+    };
+  }
+
+  async updateInfoJudge(judgeUuid: string, updateJudgeDto: UpdateJudgeDto) {
+    const userJudge = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid: judgeUuid },
+      select: {
+        Judges: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
+
+    const judge = await this.prisma.users.update({
+      where: {
+        uuid: judgeUuid,
+      },
+      data: {
+        full_name: updateJudgeDto.full_name,
+        Judges: {
+          update: {
+            where: {
+              uuid: userJudge.Judges[0].uuid,
+            },
+            data: {
+              role: updateJudgeDto.role,
+              linkedin: updateJudgeDto.linkedin,
+              instagram: updateJudgeDto.instagram,
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      status: 'success',
+      message: 'Judge updated successfully!',
+      data: {
+        uuid: judge.uuid,
+      },
+    };
+  }
+
+  async removeJudge(judgeUuid: string) {
+    const userJudge = await this.prisma.users.findUniqueOrThrow({
+      where: { uuid: judgeUuid },
+      select: {
+        Judges: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
+
+    await this.prisma.users.update({
+      where: { uuid: judgeUuid },
+      data: {
+        roles: { connect: { name: RoleType.User } },
+      },
+    });
+
+    await this.prisma.judges.delete({
+      where: { uuid: userJudge.Judges[0].uuid },
+    });
+
+    return {
+      status: 'success',
+      message: 'Judge deleted successfully',
     };
   }
 

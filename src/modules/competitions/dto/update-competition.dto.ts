@@ -1,13 +1,29 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateCompetitionDto } from './create-competition.dto';
-import { IsArray, IsDate, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsOptional, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ContentType } from '@prisma/client';
 
 export class UpdateCompetitionDto extends PartialType(CreateCompetitionDto) {
+  @ApiPropertyOptional({
+    example: 'https://example.com/thumbnail.jpg',
+    type: String,
+  })
+  thumbnail: string;
+
   @ApiPropertyOptional({ example: 'Title of competition', type: String })
   @IsOptional()
   @IsString()
   title: string;
+
+  @ApiPropertyOptional({ example: 'Story', enum: ContentType })
+  @IsOptional()
+  type: ContentType;
+
+  @ApiPropertyOptional({ example: 'Guide of competition', type: String })
+  @IsOptional()
+  @IsString()
+  guide: string;
 
   @ApiPropertyOptional({ example: 'Description of competition', type: String })
   @IsOptional()
@@ -31,7 +47,6 @@ export class UpdateCompetitionDto extends PartialType(CreateCompetitionDto) {
     type: [String],
     description: 'Array of UUIDs of judges for the competition',
   })
-  @IsArray()
   @IsString({ each: true })
   @IsOptional({ each: true })
   judge_uuids: string[];

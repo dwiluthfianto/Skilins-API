@@ -13,11 +13,17 @@ import {
   HttpException,
   HttpCode,
   Query,
+  Delete,
 } from '@nestjs/common';
 import { CompetitionsService } from './competitions.service';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { UpdateCompetitionDto } from './dto/update-competition.dto';
-import { ApiCreatedResponse, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { SupabaseService } from 'src/supabase';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -142,15 +148,73 @@ export class CompetitionsController {
   @ApiCreatedResponse({
     type: Competition,
   })
+  @UseInterceptors(FileInterceptor('thumbnail'))
   @HttpCode(HttpStatus.OK)
-  update(
+  async update(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: '.(png|jpeg|jpg)',
+        })
+        .addMaxSizeValidator({
+          maxSize: 500 * 1024,
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    thumbnail: Express.Multer.File,
     @Param('competitionUuid') competitionUuid: string,
     @Body() updateCompetitionDto: UpdateCompetitionDto,
   ) {
-    return this.competitionsService.updateCompetition(
+    const competition = await this.competitionsService.updateCompetition(
       competitionUuid,
       updateCompetitionDto,
     );
+
+    if (competition.status === 'success') {
+      const isExist =
+        await this.competitionsService.getCompetitionByUuid(competitionUuid);
+      if (thumbnail && thumbnail.size > 0) {
+        const thumbFilename = isExist.data.thumbnail.split('/').pop();
+        const { success, error } = await this.supabaseService.updateFile(
+          `${ContentFileEnum.thumbnail}${thumbFilename}`,
+          thumbnail,
+        );
+        if (!success) {
+          throw new Error(`Failed to update thumbnail: ${error}`);
+        }
+      }
+    }
+
+    return competition;
+  }
+
+  @Delete(':competitionUuid')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Staff')
+  @ApiOkResponse({ type: Competition })
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('competitionUuid') competitionUuid: string) {
+    const isExist =
+      await this.competitionsService.getCompetitionByUuid(competitionUuid);
+    const thumbFilename = isExist?.data?.thumbnail
+      ? isExist.data.thumbnail.split('/').pop().replace(/%20/g, ' ')
+      : null;
+    if (isExist) {
+      const tag =
+        await this.competitionsService.removeCompetition(competitionUuid);
+      if (tag.status === 'success') {
+        const { success, error } = await this.supabaseService.deleteFile([
+          `${ContentFileEnum.thumbnail}${thumbFilename}`,
+        ]);
+
+        if (!success) {
+          console.error('Failed to delete thumbnail:', error);
+        }
+      }
+      return tag;
+    }
   }
 
   @Get(':uuid/winners')

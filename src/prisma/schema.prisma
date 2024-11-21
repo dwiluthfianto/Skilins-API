@@ -55,8 +55,11 @@ model Ratings {
   rating_value Int
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
-  Episodes     Episodes? @relation(fields: [episodesId], references: [id])
-  episodesId   Int?
+  Episodes     Episodes? @relation(fields: [episode_id], references: [id])
+  episode_id   Int?
+
+  @@unique(name: "ratingContent", [content_id, rating_by])
+  @@unique(name: "ratingEpisode", [episode_id, rating_by])
 }
 
 model Comments {

@@ -1,14 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsNotEmpty } from 'class-validator';
 
 export class CreateRatingDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  rating_by: string;
-
   @ApiProperty({ example: 5, type: Number })
   @IsNotEmpty()
-  @IsInt()
+  @Transform(({ value }) => parseInt(value, 10))
+  @Type(() => Number)
   rating_value: number;
 }

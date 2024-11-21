@@ -85,22 +85,27 @@ export class CompetitionsService {
     });
 
     if (judge_uuids && judge_uuids.length > 0) {
-      await this.prisma.$transaction(
-        judge_uuids.map((judge_uuid) => {
-          const user = this.prisma.users.findUniqueOrThrow({
-            where: { uuid: judge_uuid },
-            select: { Judges: { select: { uuid: true } } },
-          });
+      const updateOperations: Prisma.PrismaPromise<any>[] = [];
 
-          return this.prisma.judges.update({
+      for (const judge_uuid of judge_uuids) {
+        const user = await this.prisma.users.findUniqueOrThrow({
+          where: { uuid: judge_uuid.id },
+          select: { Judges: { select: { uuid: true } } },
+        });
+
+        updateOperations.push(
+          this.prisma.judges.update({
             where: { uuid: user.Judges[0].uuid },
             data: {
               competition: { connect: { uuid: competition.uuid } },
             },
-          });
-        }),
-      );
+          }),
+        );
+      }
+
+      await this.prisma.$transaction(updateOperations);
     }
+
     return {
       status: 'success',
       message: 'Competition updated successfully!',
@@ -383,5 +388,20 @@ export class CompetitionsService {
       include: { submission: true },
       orderBy: { rank: 'asc' },
     });
+  }
+
+  async removeCompetition(competitionUuid: string) {
+    await this.prisma.competitions.findUniqueOrThrow({
+      where: { uuid: competitionUuid },
+    });
+
+    await this.prisma.competitions.delete({
+      where: { uuid: competitionUuid },
+    });
+
+    return {
+      status: 'success',
+      message: 'Competition deleted successfully!',
+    };
   }
 }

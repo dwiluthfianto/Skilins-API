@@ -232,7 +232,12 @@ export class AudioPodcastsService {
     return this.getPaginatedResponse(page, limit, total, data);
   }
 
-  async findLatest(page: number, limit: number, week: number) {
+  async findLatest(
+    page: number,
+    limit: number,
+    week: number,
+    status: string = ContentStatus.APPROVED,
+  ) {
     const currentDate = new Date();
     const weeks = week * 7;
     const oneWeekAgo = new Date(
@@ -240,6 +245,7 @@ export class AudioPodcastsService {
     );
 
     const filter = {
+      status: status as ContentStatus,
       created_at: {
         gte: oneWeekAgo,
         lte: currentDate,
@@ -377,6 +383,12 @@ export class AudioPodcastsService {
           id: genre.uuid,
           text: genre.name,
         })),
+        ratings: audio.Ratings.map((rating) => ({
+          uuid: rating.uuid,
+          created_at: rating.created_at,
+          rating_value: rating.rating_value,
+          rating_by: rating.rating_by,
+        })),
         comments: audio.Comments.map((comment) => ({
           uuid: comment.uuid,
           subject: comment.comment_content,
@@ -386,7 +398,7 @@ export class AudioPodcastsService {
           commented_by: comment.user.full_name,
           profile: comment.user.profile_url,
         })),
-        avg_rating,
+        avg_rating: avg_rating._avg.rating_value,
       },
     };
   }

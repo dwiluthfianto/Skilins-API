@@ -28,6 +28,7 @@ import { ContentFileEnum } from '../contents/content-file.enum';
 import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
 import { ContentUserDto } from '../contents/dto/content-user.dto';
 import { Request } from 'express';
+import { ContentStatus } from '@prisma/client';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/v1/contents/audios', version: '1' })
@@ -172,8 +173,9 @@ export class AudioPodcastsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 25,
     @Query('week') week: number = 1,
+    @Query('status') status: ContentStatus,
   ) {
-    return this.audioPodcastsService.findLatest(page, limit, week);
+    return this.audioPodcastsService.findLatest(page, limit, week, status);
   }
 
   @Get(':slug')

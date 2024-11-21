@@ -2,38 +2,46 @@ import {
   Controller,
   Post,
   Body,
-  Patch,
   Param,
   UseGuards,
+  Req,
+  Get,
 } from '@nestjs/common';
 import { RatingsService } from './ratings.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
-import { UpdateRatingDto } from './dto/update-rating.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
+import { Request } from 'express';
 
 @ApiTags('Rating & Comment')
 @Controller({ path: 'api/v1/ratings', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('user', 'staff', 'judges')
+@Roles('User', 'Staff', 'Student', 'Judge')
 export class RatingsController {
   constructor(private readonly ratingsService: RatingsService) {}
 
-  @Post(':uuid/rating')
+  @Post(':contentUuid')
   create(
-    @Param('uuid') uuid: string,
+    @Param('contentUuid') contentUuid: string,
+    @Req() req: Request,
     @Body() createRatingDto: CreateRatingDto,
   ) {
-    return this.ratingsService.ratingContent(uuid, createRatingDto);
+    const user = req.user;
+    return this.ratingsService.ratingContent(
+      user['sub'],
+      contentUuid,
+      createRatingDto,
+    );
   }
 
-  @Patch(':uuid/update-rating')
-  update(
-    @Param('uuid') uuid: string,
-    @Body() updateRatingDto: UpdateRatingDto,
+  @Get(':contentUuid/check')
+  async getUserRating(
+    @Param('contentUuid') contentUuid: string,
+    @Req() req: Request,
   ) {
-    return this.ratingsService.updateRating(uuid, updateRatingDto);
+    const user = req.user;
+    return this.ratingsService.getUserRating(contentUuid, user['sub']);
   }
 }
