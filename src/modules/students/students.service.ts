@@ -3,7 +3,6 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RoleType } from '@prisma/client';
-import { StatusStudentDto } from './dto/update-status-student.dto';
 
 @Injectable()
 export class StudentsService {
@@ -112,7 +111,7 @@ export class StudentsService {
     };
   }
 
-  async verifiedStudent(uuid: string, statusStudentDto: StatusStudentDto) {
+  async verifiedStudent(uuid: string) {
     const student = await this.prisma.students.findUniqueOrThrow({
       where: { uuid },
     });
@@ -120,7 +119,7 @@ export class StudentsService {
     await this.prisma.students.update({
       where: { uuid: student.uuid },
       data: {
-        status: statusStudentDto.status,
+        status: true,
       },
     });
 

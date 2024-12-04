@@ -178,6 +178,7 @@ export class JudgeService {
     evaluateSubmissionDto: EvaluateSubmissionDto,
   ) {
     // Cari submission yang diminta oleh juri
+
     const submission = await this.prisma.submissions.findUnique({
       where: { uuid: evaluateSubmissionDto.submission_uuid },
       include: { competition: true },
@@ -190,16 +191,163 @@ export class JudgeService {
       },
     });
 
-    if (judge.score !== null) {
-      throw new Error('You have already rated this submission.');
-    }
-
-    await this.prisma.judges.update({
-      where: { id: judge.id },
+    const judging = await this.prisma.judgeSubmission.create({
       data: {
+        judge_id: judge.id,
+        submission_id: submission.id,
         score: evaluateSubmissionDto.score,
         comment: evaluateSubmissionDto.comment,
       },
     });
+
+    return {
+      status: 'success',
+      message: 'Feedback succefully',
+      data: judging,
+    };
+  }
+
+  async getScoredSubmission(competitionUuid: string) {
+    const scored = await this.prisma.submissions.findMany({
+      where: {
+        competition: { uuid: competitionUuid },
+        content: {
+          status: 'APPROVED',
+        },
+        JudgeSubmission: {
+          some: {
+            score: {
+              not: 0,
+            },
+          },
+        },
+      },
+      include: {
+        student: true,
+        content: true,
+        competition: true,
+      },
+    });
+
+    const summary = await this.summaryJudges(competitionUuid);
+
+    return {
+      status: 'success',
+      data: scored,
+      summary,
+    };
+  }
+
+  async getUnscoredSubmission(competitionUuid: string) {
+    const unscored = await this.prisma.submissions.findMany({
+      where: {
+        competition: { uuid: competitionUuid },
+        content: {
+          status: 'APPROVED',
+        },
+        JudgeSubmission: {
+          none: {
+            score: {
+              not: 0,
+            },
+          },
+        },
+      },
+      include: {
+        student: true,
+        content: true,
+        competition: true,
+      },
+    });
+
+    const summary = await this.summaryJudges(competitionUuid);
+
+    return {
+      status: 'success',
+      data: unscored,
+      summary,
+    };
+  }
+
+  async summaryJudges(competitionUuid: string) {
+    const scoredSubmissions = await this.prisma.submissions.count({
+      where: {
+        competition: { uuid: competitionUuid },
+        content: {
+          status: 'APPROVED',
+        },
+        JudgeSubmission: {
+          some: {
+            score: {
+              not: null,
+            },
+          },
+        },
+      },
+    });
+    const unscoredSubmissions = await this.prisma.submissions.count({
+      where: {
+        competition: { uuid: competitionUuid },
+        content: {
+          status: 'APPROVED',
+        },
+        JudgeSubmission: {
+          none: {
+            score: {
+              not: null,
+            },
+          },
+        },
+      },
+    });
+
+    const totalSubmissions = await this.prisma.submissions.count({
+      where: {
+        competition: { uuid: competitionUuid },
+        content: {
+          status: 'APPROVED',
+        },
+      },
+    });
+
+    const deadlineJudge = await this.prisma.competitions.findUnique({
+      where: {
+        uuid: competitionUuid,
+      },
+      select: {
+        end_date: true,
+      },
+    });
+
+    return {
+      scoredSubmissions,
+      unscoredSubmissions,
+      totalSubmissions,
+      deadlineJudge,
+    };
+  }
+
+  async getJudge(userUuid) {
+    const judge = await this.prisma.users.findUnique({
+      where: {
+        uuid: userUuid,
+      },
+      include: {
+        Judges: {
+          include: {
+            competition: {
+              select: {
+                uuid: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      status: 'success',
+      data: judge,
+    };
   }
 }

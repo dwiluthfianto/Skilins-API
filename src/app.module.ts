@@ -26,6 +26,7 @@ import { CompetitionsModule } from './modules/competitions/competitions.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TagsModule } from './modules/tags/tags.module';
 import { PrakerinModule } from './modules/prakerin/prakerin.module';
+import { StoriesModule } from './modules/stories/stories.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { PrakerinModule } from './modules/prakerin/prakerin.module';
     CompetitionsModule,
     TagsModule,
     PrakerinModule,
+    StoriesModule,
   ],
   controllers: [],
   providers: [PrismaService],

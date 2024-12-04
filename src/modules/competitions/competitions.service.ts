@@ -263,6 +263,8 @@ export class CompetitionsService {
                 content: {
                   select: {
                     title: true,
+                    slug: true,
+                    thumbnail: true,
                   },
                 },
                 student: {
@@ -336,7 +338,7 @@ export class CompetitionsService {
   async getTopThreeSubmissions(submissions) {
     const scoredSubmissions = await Promise.all(
       submissions.map(async (submission) => {
-        const finalScore = await this.calculateFinalScore(submission.id);
+        const finalScore = await this.calculateFinalScore(submission.uuid);
         return { ...submission, finalScore };
       }),
     );
@@ -357,6 +359,7 @@ export class CompetitionsService {
           },
         },
         judges: true,
+        JudgeSubmission: true,
       },
     });
 
@@ -367,7 +370,7 @@ export class CompetitionsService {
       },
     });
 
-    const judgeScores = submission.judges.map((judge) => judge.score);
+    const judgeScores = submission.JudgeSubmission.map((judge) => judge.score);
     const averageJudgeScore = judgeScores.length
       ? judgeScores.reduce((a, b) => a + b, 0) / judgeScores.length
       : 0;

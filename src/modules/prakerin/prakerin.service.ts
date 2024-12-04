@@ -5,7 +5,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 import parseArrayInput from 'src/common/utils/parse-array';
-import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class PrakerinService {
@@ -117,6 +116,7 @@ export class PrakerinService {
             id: tag.uuid,
             text: tag.name,
           })),
+          status: content.status,
           created_at: content.created_at,
           updated_at: content.updated_at,
           category: content.category.name,
@@ -196,12 +196,7 @@ export class PrakerinService {
     return this.getPaginatedResponse(page, limit, total, data);
   }
 
-  async findUserContent(
-    authorUuid: string,
-    page: number,
-    limit: number,
-    status: string = ContentStatus.APPROVED,
-  ) {
+  async findUserContent(authorUuid: string, page: number, limit: number) {
     const filter = {
       Prakerin: {
         some: {
@@ -210,7 +205,6 @@ export class PrakerinService {
           },
         },
       },
-      status: status as ContentStatus,
     };
 
     const { data, total } = await this.fetchPrakerin(page, limit, filter);

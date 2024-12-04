@@ -29,7 +29,7 @@ export class AnalyticsService {
     const activeUsersDaily = await this.prisma.users.count({
       where: {
         updated_at: {
-          gte: subMonths(new Date(), 1),
+          gte: subDays(new Date(), 1),
         },
       },
     });
@@ -209,7 +209,7 @@ export class AnalyticsService {
     const monthlyReports = await this.prisma.contents.groupBy({
       by: ['created_at'],
       where: {
-        type: 'BLOG',
+        type: 'STORY',
         created_at: {
           gte: startOfMonth(sixMonthsAgo), // Mulai dari awal 6 bulan yang lalu
           lte: endOfMonth(currentDate), // Hingga akhir bulan ini

@@ -8,7 +8,7 @@ import { Roles } from '../roles/roles.decorator';
 @ApiTags('Analytics')
 @Controller({ path: 'api/v1/analytics', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('admin')
+@Roles('Staff')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

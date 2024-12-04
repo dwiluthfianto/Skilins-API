@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { RegisterJudgeDto } from '../dto/register-judge.dto';
@@ -19,6 +20,7 @@ import { Roles } from 'src/modules/roles/roles.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
 import { UpdateJudgeDto } from '../dto/update-judge.dto';
+import { Request } from 'express';
 
 @ApiTags('Judge')
 @Controller({ path: 'api/v1/judges', version: '1' })
@@ -68,5 +70,27 @@ export class JudgeController {
       judgeUuid,
       evaluateSubmissionDto,
     );
+  }
+
+  @Get('scored/:competitionUuid')
+  @Roles('Judge')
+  @HttpCode(HttpStatus.OK)
+  async scoredSubmission(@Param('competitionUuid') competitionUuid: string) {
+    return await this.judgeService.getScoredSubmission(competitionUuid);
+  }
+
+  @Get('unscored/:competitionUuid')
+  @Roles('Judge')
+  @HttpCode(HttpStatus.OK)
+  async unscoredSubmission(@Param('competitionUuid') competitionUuid: string) {
+    return await this.judgeService.getUnscoredSubmission(competitionUuid);
+  }
+
+  @Get('detail')
+  @Roles('Judge')
+  @HttpCode(HttpStatus.OK)
+  async summaryJudges(@Req() req: Request) {
+    const user = req.user;
+    return await this.judgeService.getJudge(user['sub']);
   }
 }

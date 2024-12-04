@@ -19,6 +19,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
+import { AuthRegisterStudentDto } from './dto/auth-register-student.dto';
 
 @ApiTags('Auth')
 @Controller({ path: 'api/v1/auth', version: '1' })
@@ -52,6 +53,13 @@ export class AuthController {
   @Post('register')
   async register(@Body() authRegisterLoginDto: AuthRegisterLoginDto) {
     return this.authService.register(authRegisterLoginDto);
+  }
+
+  @Post('register-student')
+  async registerStudent(
+    @Body() authRegisterStudentDto: AuthRegisterStudentDto,
+  ) {
+    return this.authService.registerStudent(authRegisterStudentDto);
   }
 
   @Get('user')

@@ -60,7 +60,7 @@ export class EbooksService {
         },
         Genres: {
           connect: parsedGenres?.map((tag) => ({
-            name: tag.name,
+            name: tag.text,
           })),
         },
       },
@@ -75,11 +75,13 @@ export class EbooksService {
     };
   }
 
-  async findAll(page: number, limit: number) {
+  async fetchEbooks(page?: number, limit?: number, filter: object = {}) {
     const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: { type: 'EBOOK' },
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        type: 'EBOOK',
+        ...filter,
+      },
       include: {
         category: true,
         Ratings: true,
@@ -100,7 +102,7 @@ export class EbooksService {
             rating_value: true,
           },
         });
-        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
 
         return {
           uuid: content.uuid,
@@ -130,234 +132,99 @@ export class EbooksService {
       }),
     );
 
+    return { data, total };
+  }
+
+  async getPaginatedResponse(
+    page: number,
+    limit: number,
+    total: number,
+    data: any[],
+  ) {
     return {
       status: 'success',
       data,
-      totalPages: Math.ceil(total / limit),
-      page,
-      lastPage: Math.ceil(total / limit),
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
+
+  async findAll(page?: number, limit?: number, search: string = '') {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+    };
+    const { data, total } = await this.fetchEbooks(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
   async findByCategory(page: number, limit: number, category: string) {
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'EBOOK',
-        category: {
+    const filter = {
+      category: {
+        name: {
+          equals: category,
+          mode: 'insensitive',
+        },
+      },
+    };
+    const { data, total } = await this.fetchEbooks(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findByGenre(page: number, limit: number, genre: string) {
+    const filter = {
+      Genres: {
+        some: {
           name: {
-            equals: category,
+            equals: genre,
             mode: 'insensitive',
           },
         },
       },
-      include: {
-        category: true,
-        Tags: true,
-        Genres: true,
-        Ratings: true,
-        Ebooks: true,
-      },
-    });
-
-    const total = await this.prisma.ebooks.count();
-
-    const data = await Promise.all(
-      contents.map(async (content) => {
-        // Calculate average rating for each content
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: content.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
-
-        return {
-          uuid: content.uuid,
-          thumbnail: content.thumbnail,
-          title: content.title,
-          description: content.description,
-          slug: content.slug,
-          tags: content.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          genres: content.Genres.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: content.created_at,
-          updated_at: content.updated_at,
-          category: content.category.name,
-          author: content.Ebooks[0]?.author,
-          pages: content.Ebooks[0]?.pages,
-          publication: content.Ebooks[0]?.publication,
-          file_url: content.Ebooks[0]?.file_url,
-          isbn: content.Ebooks[0]?.isbn,
-          release_date: content.Ebooks[0]?.release_date,
-          avg_rating,
-        };
-      }),
-    );
-
-    return {
-      status: 'success',
-      data,
-      totalPages: Math.ceil(total / limit),
-      page,
-      lastPage: Math.ceil(total / limit),
     };
+    const { data, total } = await this.fetchEbooks(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
 
-  async findByGenre(page: number, limit: number, genre: string) {
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'EBOOK',
-        Genres: {
-          some: {
-            name: {
-              equals: genre,
-              mode: 'insensitive',
-            },
+  async findByTag(page: number, limit: number, tag: string) {
+    const filter = {
+      Tags: {
+        some: {
+          name: {
+            equals: tag,
+            mode: 'insensitive',
           },
         },
       },
-      include: {
-        category: true,
-        Tags: true,
-        Genres: true,
-        Ratings: true,
-        Ebooks: true,
-      },
-    });
-
-    const total = await this.prisma.ebooks.count();
-
-    const data = await Promise.all(
-      contents.map(async (content) => {
-        // Calculate average rating for each content
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: content.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
-
-        return {
-          uuid: content.uuid,
-          thumbnail: content.thumbnail,
-          title: content.title,
-          description: content.description,
-          slug: content.slug,
-          tags: content.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          genres: content.Genres.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: content.created_at,
-          updated_at: content.updated_at,
-          category: content.category.name,
-          author: content.Ebooks[0]?.author,
-          pages: content.Ebooks[0]?.pages,
-          publication: content.Ebooks[0]?.publication,
-          file_url: content.Ebooks[0]?.file_url,
-          isbn: content.Ebooks[0]?.isbn,
-          release_date: content.Ebooks[0]?.release_date,
-          avg_rating,
-        };
-      }),
-    );
-
-    return {
-      status: 'success',
-      data,
-      totalPages: Math.ceil(total / limit),
-      page,
-      lastPage: Math.ceil(total / limit),
     };
+    const { data, total } = await this.fetchEbooks(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
 
-  async findLatest(page: number, limit: number, week: number) {
+  async findLatest(
+    page: number,
+    limit: number,
+    week: number,
+    status: string = ContentStatus.APPROVED,
+  ) {
     const currentDate = new Date();
-    const oneWeekAgo = new Date();
     const weeks = week * 7;
-    oneWeekAgo.setDate(currentDate.getDate() - weeks);
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'EBOOK',
-        created_at: {
-          gte: oneWeekAgo,
-          lte: currentDate,
-        },
-      },
-      orderBy: {
-        id: 'asc',
-      },
-      include: {
-        category: true,
-        Genres: true,
-        Ratings: true,
-        Tags: true,
-        Ebooks: true,
-      },
-    });
-
-    const total = await this.prisma.ebooks.count();
-    const data = await Promise.all(
-      contents.map(async (content) => {
-        // Calculate average rating for each content
-        const avgRatingResult = await this.prisma.ratings.aggregate({
-          where: { content_id: content.id },
-          _avg: {
-            rating_value: true,
-          },
-        });
-        const avg_rating = avgRatingResult._avg.rating_value || 0; // Default to 0 if no ratings
-
-        return {
-          uuid: content.uuid,
-          thumbnail: content.thumbnail,
-          title: content.title,
-          description: content.description,
-          slug: content.slug,
-          tags: content.Tags.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          genres: content.Genres.map((tag) => ({
-            id: tag.uuid,
-            text: tag.name,
-          })),
-          created_at: content.created_at,
-          updated_at: content.updated_at,
-          category: content.category.name,
-          author: content.Ebooks[0]?.author,
-          pages: content.Ebooks[0]?.pages,
-          publication: content.Ebooks[0]?.publication,
-          file_url: content.Ebooks[0]?.file_url,
-          isbn: content.Ebooks[0]?.isbn,
-          release_date: content.Ebooks[0]?.release_date,
-          avg_rating,
-        };
-      }),
+    const oneWeekAgo = new Date(
+      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
     );
 
-    return {
-      status: 'success',
-      data,
-      totalPages: Math.ceil(total / limit),
-      page,
-      lastPage: Math.ceil(total / limit),
+    const filter = {
+      status: status as ContentStatus,
+      created_at: {
+        gte: oneWeekAgo,
+        lte: currentDate,
+      },
     };
+    const { data, total } = await this.fetchEbooks(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
   }
 
   async findOne(uuid: string) {

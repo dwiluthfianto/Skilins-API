@@ -6,6 +6,8 @@ import { AddStoryEpisodeDto } from './dto/add-episode-story.dto.ts';
 import { UpdateStoryEpisodeDto } from './dto/update-episode-story.dto.ts';
 import { UpdateStoryDto } from './dto/update-story.dto';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
+import parseArrayInput from 'src/common/utils/parse-array';
+import { ContentStatus } from '@prisma/client';
 
 @Injectable()
 export class StoriesService {
@@ -25,36 +27,22 @@ export class StoriesService {
       author_uuid,
     } = createStoryDto;
 
-    let parsedGenres;
+    const parsedGenres = parseArrayInput(genres);
+    const parsedTags = parseArrayInput(tags);
 
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
-
+    const userData = await this.prisma.users.findUniqueOrThrow({
+      where: {
+        uuid: author_uuid,
+      },
+      include: {
+        Students: {
+          select: {
+            uuid: true,
+          },
+        },
+      },
+    });
     const story = await this.prisma.contents.create({
       data: {
         type: 'STORY',
@@ -70,12 +58,12 @@ export class StoriesService {
         slug: newSlug,
         Stories: {
           create: {
-            author: { connect: { uuid: author_uuid } },
+            author: { connect: { uuid: userData.Students[0].uuid } },
           },
         },
         Genres: {
           connect: parsedGenres?.map((tag) => ({
-            name: tag.name,
+            name: tag.text,
           })),
         },
       },
@@ -103,7 +91,11 @@ export class StoriesService {
           include: {
             author: {
               select: {
-                uuid: true,
+                user: {
+                  select: {
+                    uuid: true,
+                  },
+                },
               },
             },
           },
@@ -111,9 +103,9 @@ export class StoriesService {
       },
     });
 
-    if (content.Stories[0].author.uuid !== authorUuid) {
+    if (content.Stories[0].author.user.uuid !== authorUuid) {
       throw new ForbiddenException(
-        'You do not have permission to delete this episode.',
+        'You do not have permission to add episode in this story.',
       );
     }
 
@@ -135,9 +127,181 @@ export class StoriesService {
     };
   }
 
-  async getStoryWithEpisodes(storyUuid: string) {
+  async fetchStories(page?: number, limit?: number, filter: object = {}) {
+    const stories = await this.prisma.contents.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        type: 'STORY',
+        ...filter,
+      },
+      include: {
+        category: true,
+        Tags: true,
+        Genres: true,
+        Ratings: true,
+        Stories: {
+          include: {
+            author: true,
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.stories.count();
+
+    const data = await Promise.all(
+      stories.map(async (story) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: story.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+
+        return {
+          uuid: story.uuid,
+          thumbnail: story.thumbnail,
+          title: story.title,
+          description: story.description,
+          slug: story.slug,
+          tags: story.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: story.Genres.map((genre) => ({
+            id: genre.uuid,
+            text: genre.name,
+          })),
+          status: story.status,
+          created_at: story.created_at,
+          updated_at: story.updated_at,
+          category: story.category.name,
+          creator: story.Stories[0]?.author?.name || null,
+          avg_rating,
+        };
+      }),
+    );
+
+    return { data, total };
+  }
+
+  async getPaginatedResponse(
+    page: number,
+    limit: number,
+    total: number,
+    data: any[],
+  ) {
+    return {
+      status: 'success',
+      data,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
+    };
+  }
+
+  async findAll(page?: number, limit?: number, search: string = '') {
+    const filter = {
+      title: {
+        contains: search,
+        mode: 'insensitive',
+      },
+    };
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findByCategory(page: number, limit: number, category: string) {
+    const filter = {
+      category: {
+        name: {
+          equals: category,
+          mode: 'insensitive',
+        },
+      },
+    };
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findByGenre(page: number, limit: number, genre: string) {
+    const filter = {
+      Genres: {
+        some: {
+          name: {
+            equals: genre,
+            mode: 'insensitive',
+          },
+        },
+      },
+    };
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findByTag(page: number, limit: number, tag: string) {
+    const filter = {
+      Tags: {
+        some: {
+          name: {
+            equals: tag,
+            mode: 'insensitive',
+          },
+        },
+      },
+    };
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findUserContent(
+    authorUuid: string,
+    page: number,
+    limit: number,
+    status: string = ContentStatus.APPROVED,
+  ) {
+    const filter = {
+      Stories: {
+        some: {
+          author: {
+            user: { uuid: authorUuid },
+          },
+        },
+      },
+      status: status as ContentStatus,
+    };
+
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async findLatest(
+    page: number,
+    limit: number,
+    week: number,
+    status: string = ContentStatus.APPROVED,
+  ) {
+    const currentDate = new Date();
+    const weeks = week * 7;
+    const oneWeekAgo = new Date(
+      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
+    );
+
+    const filter = {
+      status: status as ContentStatus,
+      created_at: {
+        gte: oneWeekAgo,
+        lte: currentDate,
+      },
+    };
+    const { data, total } = await this.fetchStories(page, limit, filter);
+    return this.getPaginatedResponse(page, limit, total, data);
+  }
+
+  async getStoryBySlug(slug: string) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'STORY', uuid: storyUuid },
+      where: { type: 'STORY', slug },
       include: {
         category: true,
         Genres: true,
@@ -170,6 +334,7 @@ export class StoriesService {
         title: content.title,
         description: content.description,
         slug: content.slug,
+        status: content.status,
         tags: content.Tags.map((tag) => ({
           id: tag.uuid,
           text: tag.name,
@@ -182,10 +347,11 @@ export class StoriesService {
           uuid: episode.uuid,
           title: episode.title,
           order: episode.order,
+          created_at: episode.created_at,
         })),
         genres: content.Genres?.map((genre) => ({
-          uuid: genre.uuid,
-          name: genre.name,
+          id: genre.uuid,
+          text: genre.name,
         })),
         comments: content.Comments?.map((comment) => ({
           uuid: comment.uuid,
@@ -194,14 +360,26 @@ export class StoriesService {
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        avg_rating,
+        avg_rating: avg_rating._avg.rating_value,
       },
     };
   }
 
-  async getOneEpisode(storyUuid: string, episodeUuid: string) {
+  async getOneEpisode(slugStory: string, order: number) {
     const content = await this.prisma.contents.findUniqueOrThrow({
-      where: { type: 'STORY', uuid: storyUuid },
+      where: {
+        type: 'STORY',
+        slug: slugStory,
+        Stories: {
+          some: {
+            episodes: {
+              some: {
+                order,
+              },
+            },
+          },
+        },
+      },
       include: {
         category: true,
         Genres: true,
@@ -211,12 +389,7 @@ export class StoriesService {
         Stories: {
           include: {
             author: true,
-            episodes: {
-              where: {
-                uuid: episodeUuid,
-              },
-              take: 1,
-            },
+            episodes: true,
           },
         },
       },
@@ -252,8 +425,8 @@ export class StoriesService {
           order: content.Stories[0].episodes[0].order,
         },
         genres: content.Genres?.map((genre) => ({
-          uuid: genre.uuid,
-          name: genre.name,
+          id: genre.uuid,
+          text: genre.name,
         })),
         comments: content.Comments?.map((comment) => ({
           uuid: comment.uuid,
@@ -262,7 +435,7 @@ export class StoriesService {
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        avg_rating,
+        avg_rating: avg_rating._avg.rating_value,
       },
     };
   }

@@ -224,36 +224,47 @@ model Prakerin {
 }
 
 model Submissions {
-  id             Int          @id @default(autoincrement())
-  uuid           String       @unique @default(uuid())
-  student_id     Int
-  student        Students     @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  content_id     Int
-  content        Contents     @relation(fields: [content_id], references: [id], onDelete: Cascade)
-  competition_id Int
-  competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
-  created_at     DateTime     @default(now())
-  updated_at     DateTime     @updatedAt
-  judges         Judges[]
-  Winners        Winners[]
+  id              Int               @id @default(autoincrement())
+  uuid            String            @unique @default(uuid())
+  student_id      Int
+  student         Students          @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  content_id      Int
+  content         Contents          @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  competition_id  Int
+  competition     Competitions      @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  judges          Judges[]
+  Winners         Winners[]
+  JudgeSubmission JudgeSubmission[]
 }
 
 model Judges {
-  id             Int           @id @default(autoincrement())
-  uuid           String        @unique @default(uuid())
-  user_id        Int
-  user           Users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  role           String?
-  linkedin       String?
-  instagram      String?
-  competition_id Int?
-  competition    Competitions? @relation(fields: [competition_id], references: [id], onDelete: Cascade)
-  submission_id  Int?
-  submission     Submissions?  @relation(fields: [submission_id], references: [id], onDelete: Cascade)
-  score          Float?
-  comment        String?
-  created_at     DateTime      @default(now())
-  updated_at     DateTime      @updatedAt
+  id              Int               @id @default(autoincrement())
+  uuid            String            @unique @default(uuid())
+  user_id         Int
+  user            Users             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role            String?
+  linkedin        String?
+  instagram       String?
+  competition_id  Int?
+  competition     Competitions?     @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  Submissions     Submissions?      @relation(fields: [submissionsId], references: [id])
+  submissionsId   Int?
+  JudgeSubmission JudgeSubmission[]
+}
+
+model JudgeSubmission {
+  id            Int         @id @default(autoincrement())
+  uuid          String      @unique @default(uuid())
+  judge_id      Int
+  submission_id Int
+  submission    Submissions @relation(fields: [submission_id], references: [id])
+  judge         Judges      @relation(fields: [judge_id], references: [id])
+  score         Float?
+  comment       String?
 }
 
 model Competitions {

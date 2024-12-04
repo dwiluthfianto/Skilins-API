@@ -12,6 +12,7 @@ import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import ms from 'ms';
 import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
 import { RoleType } from '@prisma/client';
+import { AuthRegisterStudentDto } from './dto/auth-register-student.dto';
 
 @Injectable()
 export class AuthService {
@@ -263,6 +264,49 @@ export class AuthService {
         full_name: authRegisterLoginDto.full_name,
         emailVerified: false,
         roles: { connect: { uuid: role.uuid } },
+      },
+    });
+    await this.sendVerificationEmail(user.uuid);
+
+    return {
+      status: 'success',
+      message:
+        'Register successful! Please check your email to verify your account.',
+      data: {
+        uuid: user.uuid,
+      },
+    };
+  }
+
+  async registerStudent(authRegisterStudentDto: AuthRegisterStudentDto) {
+    const hashedPassword = await bcrypt.hash(
+      authRegisterStudentDto.password,
+      10,
+    );
+
+    const role = await this.prisma.roles.findUniqueOrThrow({
+      where: { name: RoleType.User },
+    });
+
+    const user = await this.prisma.users.create({
+      data: {
+        email: authRegisterStudentDto.email,
+        password: hashedPassword,
+        full_name: authRegisterStudentDto.full_name,
+        emailVerified: false,
+        roles: { connect: { uuid: role.uuid } },
+      },
+    });
+
+    await this.prisma.students.create({
+      data: {
+        nis: authRegisterStudentDto.nis,
+        name: authRegisterStudentDto.name,
+        birthdate: authRegisterStudentDto.birthdate,
+        birthplace: authRegisterStudentDto.birthplace,
+        sex: authRegisterStudentDto.sex,
+        user: { connect: { uuid: user.uuid } },
+        major: { connect: { name: authRegisterStudentDto.major } },
       },
     });
 

@@ -20,7 +20,7 @@ import { UpdatePrakerinDto } from './dto/update-prakerin.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
-import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Prakerin } from './entities/prakerin.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
@@ -29,7 +29,8 @@ import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
 import { Request } from 'express';
 import { ContentUserDto } from '../contents/dto/content-user.dto';
 
-@Controller('prakerin')
+@ApiTags('Contents')
+@Controller({ path: 'api/v1/contents/prakerin', version: '1' })
 export class PrakerinController {
   constructor(
     private readonly prakerinService: PrakerinService,
@@ -148,13 +149,8 @@ export class PrakerinController {
   @HttpCode(HttpStatus.OK)
   async findUserPrakerin(@Req() req: Request, @Query() query: ContentUserDto) {
     const user = req.user;
-    const { page, limit, status } = query;
-    return await this.prakerinService.findUserContent(
-      user['sub'],
-      page,
-      limit,
-      status,
-    );
+    const { page, limit } = query;
+    return await this.prakerinService.findUserContent(user['sub'], page, limit);
   }
 
   @Get('latest')

@@ -29,6 +29,8 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { ContentStatus } from '@prisma/client';
 
 @ApiTags('Contents')
 @Controller({ path: 'api/v1/contents/ebooks', version: '1' })
@@ -128,19 +130,22 @@ export class EbooksController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('category') category: string,
-    @Query('genre') genre: string,
-  ) {
+  findAll(@Query() query: FindContentQueryDto) {
+    const { page, limit, category, tag, genre, search } = query;
+
     if (category) {
       return this.ebooksService.findByCategory(page, limit, category);
-    } else if (genre) {
-      return this.ebooksService.findByGenre(page, limit, genre);
-    } else {
-      return this.ebooksService.findAll(page, limit);
     }
+
+    if (tag) {
+      return this.ebooksService.findByTag(page, limit, tag);
+    }
+
+    if (genre) {
+      return this.ebooksService.findByGenre(page, limit, genre);
+    }
+
+    return this.ebooksService.findAll(page, limit, search);
   }
 
   @Get('latest')
@@ -153,8 +158,9 @@ export class EbooksController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 25,
     @Query('week') week: number = 1,
+    @Query('status') status: ContentStatus,
   ) {
-    return this.ebooksService.findLatest(page, limit, week);
+    return this.ebooksService.findLatest(page, limit, week, status);
   }
 
   @Get(':slug')

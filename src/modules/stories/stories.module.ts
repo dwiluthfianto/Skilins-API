@@ -3,9 +3,12 @@ import { StoriesService } from './stories.service';
 import { StoriesController } from './stories.controller';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import { SupabaseService } from 'src/supabase';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
   controllers: [StoriesController],
-  providers: [StoriesService, UuidHelper, SlugHelper],
+  providers: [StoriesService, UuidHelper, SlugHelper, SupabaseService],
+  imports: [PrismaModule],
 })
 export class StoriesModule {}

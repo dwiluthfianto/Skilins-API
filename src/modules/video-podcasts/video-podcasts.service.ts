@@ -304,6 +304,11 @@ export class VideoPodcastsService {
             creator: true,
           },
         },
+        Submissions: {
+          select: {
+            uuid: true,
+          },
+        },
       },
     });
 
@@ -342,7 +347,8 @@ export class VideoPodcastsService {
           updated_at: comment.updated_at,
           commented_by: comment.commented_by,
         })),
-        avg_rating,
+        submission_uuid: video.Submissions[0].uuid || '',
+        avg_rating: avg_rating._avg.rating_value,
       },
     };
   }

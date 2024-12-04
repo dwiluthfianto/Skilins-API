@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { MajorsService } from './majors.service';
 import { CreateMajorDto } from './dto/create-major.dto';
@@ -111,8 +112,12 @@ export class MajorsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll() {
-    return this.majorsService.findAll();
+  findAll(@Query('search') search: string) {
+    if (search) {
+      return this.majorsService.findAllByName(search);
+    } else {
+      return this.majorsService.findAll();
+    }
   }
 
   @Get(':uuid')

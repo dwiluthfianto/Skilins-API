@@ -18,7 +18,6 @@ import { Student } from './entities/student.entity';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
-import { StatusStudentDto } from './dto/update-status-student.dto';
 
 @ApiTags('Student')
 @Controller({ path: 'api/v1/students', version: '1' })
@@ -76,11 +75,8 @@ export class StudentsController {
   })
   @HttpCode(HttpStatus.OK)
   @Roles('Staff')
-  async verifyStudent(
-    @Param('uuid') uuid: string,
-    @Body() statusStudentDto: StatusStudentDto,
-  ) {
-    return await this.studentsService.verifiedStudent(uuid, statusStudentDto);
+  async verifyStudent(@Param('uuid') uuid: string) {
+    return await this.studentsService.verifiedStudent(uuid);
   }
 
   @Delete(':uuid')

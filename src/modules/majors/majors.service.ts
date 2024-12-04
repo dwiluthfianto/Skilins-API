@@ -34,6 +34,21 @@ export class MajorsService {
     };
   }
 
+  async findAllByName(name: string) {
+    const majors = await this.prisma.majors.findMany({
+      where: { name: { contains: name, mode: 'insensitive' } },
+    });
+    return {
+      status: 'success',
+      data: majors.map((major) => ({
+        uuid: major.uuid,
+        avatar_url: major.avatar_url,
+        name: major.name,
+        description: major.description,
+      })),
+    };
+  }
+
   async findOne(uuid: string) {
     const major = await this.prisma.majors.findUniqueOrThrow({
       where: { uuid },
