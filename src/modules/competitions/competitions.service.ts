@@ -31,9 +31,26 @@ export class CompetitionsService {
         guide: data.guide,
         start_date: data.start_date,
         end_date: data.end_date,
+        winner_count: data.winner_count,
         submission_deadline: data.submission_deadline,
       },
     });
+
+    const parameters = parseArrayInput(data.parameters);
+
+    if (parameters && parameters.length > 0) {
+      console.log(parameters);
+
+      const evaluationParameters = parameters.map((param) => ({
+        competition_id: competition.id,
+        parameterName: param.parameterName,
+        weight: parseInt(param.weight, 10),
+      }));
+
+      await this.prisma.evaluationParameter.createMany({
+        data: evaluationParameters,
+      });
+    }
 
     if (judge_uuids && judge_uuids.length > 0) {
       const updateOperations: Prisma.PrismaPromise<any>[] = [];
@@ -80,9 +97,22 @@ export class CompetitionsService {
         guide: data.guide,
         start_date: data.start_date,
         end_date: data.end_date,
+        winner_count: data.winner_count,
         submission_deadline: data.submission_deadline,
       },
     });
+
+    if (data.parameters && data.parameters.length > 0) {
+      const evaluationParameters = data.parameters.map((param) => ({
+        competition_id: competition.id,
+        parameterName: param.parameterName,
+        weight: param.weight,
+      }));
+
+      await this.prisma.evaluationParameter.updateMany({
+        data: evaluationParameters,
+      });
+    }
 
     if (judge_uuids && judge_uuids.length > 0) {
       const updateOperations: Prisma.PrismaPromise<any>[] = [];
@@ -273,6 +303,7 @@ export class CompetitionsService {
                     major: true,
                   },
                 },
+                Score: true,
               },
             },
           },
@@ -308,7 +339,6 @@ export class CompetitionsService {
   async determineWinnersForEndedCompetitions() {
     const today = new Date();
 
-    // Mencari kompetisi yang sudah berakhir dan belum ada pemenangnya
     const endedCompetitions = await this.prisma.competitions.findMany({
       where: {
         end_date: { lte: today },
@@ -318,24 +348,26 @@ export class CompetitionsService {
     });
 
     for (const competition of endedCompetitions) {
-      const topSubmissions = await this.getTopThreeSubmissions(
+      const winnerCount = competition.winner_count;
+
+      const topSubmissions = await this.getTopSubmissions(
         competition.Submissions,
+        winnerCount,
       );
 
-      // Menyimpan pemenang ke dalam database
       for (let i = 0; i < topSubmissions.length; i++) {
         await this.prisma.winners.create({
           data: {
             competition_id: competition.id,
             submission_id: topSubmissions[i].id,
-            rank: i + 1, // Rank 1, 2, dan 3
+            rank: i + 1,
           },
         });
       }
     }
   }
 
-  async getTopThreeSubmissions(submissions) {
+  async getTopSubmissions(submissions, winnerCount: number) {
     const scoredSubmissions = await Promise.all(
       submissions.map(async (submission) => {
         const finalScore = await this.calculateFinalScore(submission.uuid);
@@ -343,10 +375,9 @@ export class CompetitionsService {
       }),
     );
 
-    // Mengurutkan submission berdasarkan skor tertinggi dan memilih 3 terbaik
     return scoredSubmissions
       .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, 3);
+      .slice(0, winnerCount);
   }
 
   async calculateFinalScore(uuid: string): Promise<number> {
@@ -358,10 +389,40 @@ export class CompetitionsService {
             uuid: true,
           },
         },
-        judges: true,
-        JudgeSubmission: true,
+        Score: {
+          select: {
+            parameter: {
+              select: {
+                parameterName: true,
+                weight: true,
+                scores: {
+                  select: {
+                    score: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    submission.Score.forEach((index) => {
+      const scores = index.parameter.scores.map((s) => s.score);
+      const averageParameterScore = scores.length
+        ? scores.reduce((a, b) => a + b, 0) / scores.length
+        : 0;
+
+      totalWeightedScore +=
+        averageParameterScore * (index.parameter.weight / 100);
+      totalWeight += index.parameter.weight;
+    });
+
+    const normalizedScore =
+      totalWeight > 0 ? totalWeightedScore / (totalWeight / 100) : 0;
 
     const averageUserRating = await this.prisma.ratings.aggregate({
       where: { content: { uuid: submission.content.uuid } },
@@ -370,16 +431,11 @@ export class CompetitionsService {
       },
     });
 
-    const judgeScores = submission.JudgeSubmission.map((judge) => judge.score);
-    const averageJudgeScore = judgeScores.length
-      ? judgeScores.reduce((a, b) => a + b, 0) / judgeScores.length
-      : 0;
-
-    // Jika rata-rata rating user `null`, maka dianggap 0
     const userRatingScore = averageUserRating._avg.rating_value ?? 0;
 
-    // Menghitung skor akhir dengan bobot 40% rating user dan 60% skor juri
-    return 0.4 * userRatingScore + 0.6 * averageJudgeScore;
+    const finalScore = 0.2 * userRatingScore + 0.8 * normalizedScore;
+
+    return finalScore;
   }
 
   async getWinnersForCompetition(uuid: string) {

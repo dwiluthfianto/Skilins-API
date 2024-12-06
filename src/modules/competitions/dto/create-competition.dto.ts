@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ContentType } from '@prisma/client';
-import { Transform } from 'class-transformer';
-import { IsDate, IsNotEmpty, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsDate, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+import { EvaluationParameterDto } from './evaluation-parameter.dto';
 
 export class CreateCompetitionDto {
   @ApiProperty({ example: 'https://example.com/thumbnail.jpg', type: String })
@@ -44,6 +45,13 @@ export class CreateCompetitionDto {
   @IsDate()
   submission_deadline: Date;
 
+  @ApiProperty({ example: 3, type: Number, description: 'Number of winners' })
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsNotEmpty()
+  @IsInt()
+  @Min(1)
+  winner_count: number;
+
   @ApiProperty({
     example: ['uuid-1', 'uuid-2'],
     type: [String],
@@ -52,4 +60,16 @@ export class CreateCompetitionDto {
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
   judge_uuids: string[];
+
+  @ApiProperty({
+    example: [
+      { parameterName: 'Creativity', weight: 0.4 },
+      { parameterName: 'Originality', weight: 0.6 },
+    ],
+    type: [EvaluationParameterDto],
+    description: 'Array of evaluation parameters for the competition',
+  })
+  @IsNotEmpty()
+  @Type(() => EvaluationParameterDto)
+  parameters?: EvaluationParameterDto[];
 }

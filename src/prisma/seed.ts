@@ -106,6 +106,104 @@ async function main() {
       major: { connect: { name: 'PENGEMBANGAN PERANGKAT LUNAK DAN GIM' } },
     },
   });
+
+  const Categories = ['Fiction', 'Non-fiction'];
+  for (const name of Categories) {
+    await prisma.categories.upsert({
+      where: { name },
+      update: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+      create: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+    });
+  }
+
+  const Genres = [
+    'Mystery',
+    'Science Fiction',
+    'Fantasy',
+    'Romance',
+    'Thriller',
+    'Biography',
+    'Self-Help',
+    'Historical Fiction',
+    'Young Adult',
+    `Children's Literature`,
+    'Graphic Novel',
+    'Poetry',
+    'Cookbook',
+    'Travel',
+    'Memoir',
+    'Classic',
+    'Dystopian',
+    'Adventure',
+  ];
+  for (const name of Genres) {
+    await prisma.genres.upsert({
+      where: { name },
+      update: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+      create: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+    });
+  }
+
+  const Tags = [
+    'Best Seller',
+    'New Release',
+    'Award Winning',
+    'Highly Recommended',
+    'Popular Choice',
+    'Must Read',
+    'Critically Acclaimed',
+    'Reader Favorite',
+    'Book Club Pick',
+    'Trending Now',
+    'Essential Reading',
+    'Top Rated',
+    'Diverse Voices',
+    'Debut Author',
+    'Illustrated Edition',
+    'Limited Edition',
+    `Collector's Item`,
+    'Signed Copy',
+    'E-book Exclusive',
+    'Audiobook Available',
+  ];
+  for (const name of Tags) {
+    await prisma.tags.upsert({
+      where: { name },
+      update: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+      create: {
+        avatar_url:
+          'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        name,
+        description: 'No description avalaible!',
+      },
+    });
+  }
+
   console.log({
     admin,
     staff,

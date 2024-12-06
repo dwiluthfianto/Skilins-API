@@ -305,8 +305,12 @@ export class VideoPodcastsService {
           },
         },
         Submissions: {
-          select: {
-            uuid: true,
+          include: {
+            competition: {
+              select: {
+                uuid: true,
+              },
+            },
           },
         },
       },
@@ -349,6 +353,7 @@ export class VideoPodcastsService {
         })),
         submission_uuid: video.Submissions[0].uuid || '',
         avg_rating: avg_rating._avg.rating_value,
+        competition_uuid: video.Submissions[0].competition.uuid,
       },
     };
   }

@@ -350,6 +350,15 @@ export class AudioPodcastsService {
             creator: true,
           },
         },
+        Submissions: {
+          include: {
+            competition: {
+              select: {
+                uuid: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -399,6 +408,8 @@ export class AudioPodcastsService {
           profile: comment.user.profile_url,
         })),
         avg_rating: avg_rating._avg.rating_value,
+        submission_uuid: audio.Submissions[0].uuid || '',
+        competition_uuid: audio.Submissions[0].competition.uuid,
       },
     };
   }

@@ -1,18 +1,39 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 
 export class EvaluateSubmissionDto {
-  @ApiProperty({ example: 'submission uuid', type: String })
   @IsNotEmpty()
   @IsString()
   submission_uuid: string;
 
-  @ApiProperty({ example: 5, type: Number })
-  @IsNumber()
   @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ParameterScoreDto)
+  parameter_scores: ParameterScoreDto[];
+}
+
+export class ParameterScoreDto {
+  @IsNotEmpty()
+  @IsString()
+  parameter_uuid: string;
+
+  @IsNotEmpty()
+  @IsInt()
+  @Min(0)
+  @Max(5)
   score: number;
 
   @IsOptional()
   @IsString()
-  comment?: string;
+  notes?: string;
 }

@@ -93,4 +93,13 @@ export class JudgeController {
     const user = req.user;
     return await this.judgeService.getJudge(user['sub']);
   }
+
+  @Get(':competitionUuid/evaluation-parameters')
+  @Roles('Judge')
+  @HttpCode(HttpStatus.OK)
+  async getEvaluationParameters(
+    @Param('competitionUuid') competitionUuid: string,
+  ) {
+    return this.judgeService.findAllEvaluationParameter(competitionUuid);
+  }
 }

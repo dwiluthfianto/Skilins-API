@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { RegisterJudgeDto } from '../dto/register-judge.dto';
 import * as bcrypt from 'bcrypt';
 import { RoleType } from '@prisma/client';
@@ -173,17 +177,36 @@ export class JudgeService {
     };
   }
 
+  async findAllEvaluationParameter(competitionUuid: string) {
+    const parameters = await this.prisma.evaluationParameter.findMany({
+      where: { competition: { uuid: competitionUuid } },
+    });
+
+    if (!parameters.length) {
+      throw new NotFoundException(
+        'No evaluation parameters found for this competition.',
+      );
+    }
+
+    return {
+      status: 'success',
+      data: parameters,
+    };
+  }
+
   async evaluateSubmission(
     judgeUuid: string,
     evaluateSubmissionDto: EvaluateSubmissionDto,
   ) {
-    // Cari submission yang diminta oleh juri
+    const { submission_uuid, parameter_scores } = evaluateSubmissionDto;
 
-    const submission = await this.prisma.submissions.findUnique({
-      where: { uuid: evaluateSubmissionDto.submission_uuid },
-      include: { competition: true },
+    // Cari submission dan validasi kompetisi
+    const submission = await this.prisma.submissions.findUniqueOrThrow({
+      where: { uuid: submission_uuid },
+      include: { competition: { include: { EvaluationParameter: true } } },
     });
 
+    // Validasi bahwa juri adalah bagian dari kompetisi
     const judge = await this.prisma.judges.findFirstOrThrow({
       where: {
         user: { uuid: judgeUuid },
@@ -191,19 +214,42 @@ export class JudgeService {
       },
     });
 
-    const judging = await this.prisma.judgeSubmission.create({
-      data: {
-        judge_id: judge.id,
-        submission_id: submission.id,
-        score: evaluateSubmissionDto.score,
-        comment: evaluateSubmissionDto.comment,
-      },
-    });
+    // Validasi parameter evaluasi
+    const validParameters = submission.competition.EvaluationParameter.map(
+      (p) => p.uuid,
+    );
+    for (const param of parameter_scores) {
+      if (!validParameters.includes(param.parameter_uuid)) {
+        throw new BadRequestException(
+          `Invalid parameter UUID: ${param.parameter_uuid}`,
+        );
+      }
+    }
+
+    // Simpan setiap skor parameter ke database
+    const scores = await Promise.all(
+      parameter_scores.map(async (param) => {
+        const evaluationParameter =
+          await this.prisma.evaluationParameter.findUniqueOrThrow({
+            where: { uuid: param.parameter_uuid },
+          });
+
+        return this.prisma.score.create({
+          data: {
+            judge_id: judge.id,
+            submission_id: submission.id,
+            parameter_id: evaluationParameter.id,
+            score: param.score,
+            notes: param.notes || null,
+          },
+        });
+      }),
+    );
 
     return {
       status: 'success',
-      message: 'Feedback succefully',
-      data: judging,
+      message: 'Submission evaluated successfully',
+      data: scores,
     };
   }
 
@@ -214,7 +260,7 @@ export class JudgeService {
         content: {
           status: 'APPROVED',
         },
-        JudgeSubmission: {
+        Score: {
           some: {
             score: {
               not: 0,
@@ -245,7 +291,7 @@ export class JudgeService {
         content: {
           status: 'APPROVED',
         },
-        JudgeSubmission: {
+        Score: {
           none: {
             score: {
               not: 0,
@@ -276,25 +322,26 @@ export class JudgeService {
         content: {
           status: 'APPROVED',
         },
-        JudgeSubmission: {
+        Score: {
           some: {
             score: {
-              not: null,
+              not: { equals: 0 },
             },
           },
         },
       },
     });
+
     const unscoredSubmissions = await this.prisma.submissions.count({
       where: {
         competition: { uuid: competitionUuid },
         content: {
           status: 'APPROVED',
         },
-        JudgeSubmission: {
+        Score: {
           none: {
             score: {
-              not: null,
+              not: { equals: 0 },
             },
           },
         },

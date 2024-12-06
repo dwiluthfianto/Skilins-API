@@ -16,7 +16,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
-import { ThrottlerModule } from '@nestjs/throttler';
+// import { ThrottlerModule } from '@nestjs/throttler';
 import { MailerConfigModule } from './modules/mailer/mailer.module';
 import { HealthModule } from './modules/health/health.module';
 import { GenresModule } from './modules/genres/genres.module';
@@ -46,12 +46,12 @@ import { StoriesModule } from './modules/stories/stories.module';
     PassportModule,
     SupabaseModule,
     AnalyticsModule,
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
+    // ThrottlerModule.forRoot([
+    //   {
+    //     ttl: 60000,
+    //     limit: 10,
+    //   },
+    // ]),
     ScheduleModule.forRoot(),
     MailerConfigModule,
     HealthModule,

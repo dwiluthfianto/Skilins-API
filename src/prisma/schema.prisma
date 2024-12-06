@@ -224,64 +224,80 @@ model Prakerin {
 }
 
 model Submissions {
-  id              Int               @id @default(autoincrement())
-  uuid            String            @unique @default(uuid())
-  student_id      Int
-  student         Students          @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  content_id      Int
-  content         Contents          @relation(fields: [content_id], references: [id], onDelete: Cascade)
-  competition_id  Int
-  competition     Competitions      @relation(fields: [competition_id], references: [id], onDelete: Cascade)
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
-  judges          Judges[]
-  Winners         Winners[]
-  JudgeSubmission JudgeSubmission[]
+  id             Int          @id @default(autoincrement())
+  uuid           String       @unique @default(uuid())
+  student_id     Int
+  student        Students     @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  content_id     Int
+  content        Contents     @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  competition_id Int
+  competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  judges         Judges[]
+  Winners        Winners[]
+  Score          Score[]
 }
 
 model Judges {
-  id              Int               @id @default(autoincrement())
-  uuid            String            @unique @default(uuid())
-  user_id         Int
-  user            Users             @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  role            String?
-  linkedin        String?
-  instagram       String?
-  competition_id  Int?
-  competition     Competitions?     @relation(fields: [competition_id], references: [id], onDelete: Cascade)
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
-  Submissions     Submissions?      @relation(fields: [submissionsId], references: [id])
-  submissionsId   Int?
-  JudgeSubmission JudgeSubmission[]
+  id             Int           @id @default(autoincrement())
+  uuid           String        @unique @default(uuid())
+  user_id        Int
+  user           Users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role           String?
+  linkedin       String?
+  instagram      String?
+  competition_id Int?
+  competition    Competitions? @relation(fields: [competition_id], references: [id])
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  score          Score[]
+  Submissions    Submissions?  @relation(fields: [submissions_id], references: [id])
+  submissions_id Int?
 }
 
-model JudgeSubmission {
-  id            Int         @id @default(autoincrement())
-  uuid          String      @unique @default(uuid())
+model EvaluationParameter {
+  id             Int          @id @default(autoincrement())
+  uuid           String       @unique @default(uuid())
+  competition_id Int
+  parameterName  String
+  weight         Float        @default(1)
+  created_at     DateTime     @default(now())
+  competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  scores         Score[]
+}
+
+model Score {
+  id            Int                 @id @default(autoincrement())
+  uuid          String              @unique @default(uuid())
   judge_id      Int
   submission_id Int
-  submission    Submissions @relation(fields: [submission_id], references: [id])
-  judge         Judges      @relation(fields: [judge_id], references: [id])
-  score         Float?
-  comment       String?
+  parameter_id  Int
+  score         Int
+  notes         String? // Catatan opsional dari juri
+  created_at    DateTime            @default(now())
+  judge         Judges              @relation(fields: [judge_id], references: [id])
+  submission    Submissions         @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+  parameter     EvaluationParameter @relation(fields: [parameter_id], references: [id], onDelete: Cascade)
 }
 
 model Competitions {
-  id                  Int           @id @default(autoincrement())
-  uuid                String        @unique @default(uuid())
+  id                  Int                   @id @default(autoincrement())
+  uuid                String                @unique @default(uuid())
   thumbnail           String
   title               String
-  slug                String        @unique
+  slug                String                @unique
   type                ContentType
   description         String
   guide               String
+  winner_count        Int
   start_date          DateTime
   end_date            DateTime
   submission_deadline DateTime
   Submissions         Submissions[]
   Winners             Winners[]
   Judges              Judges[]
+  EvaluationParameter EvaluationParameter[]
 }
 
 model Winners {
@@ -289,9 +305,9 @@ model Winners {
   uuid           String       @unique @default(uuid())
   competition_id Int
   competition    Competitions @relation(fields: [competition_id], references: [id], onDelete: Cascade)
-  submission_id  Int // Kiriman yang menjadi pemenang
+  submission_id  Int
   submission     Submissions  @relation(fields: [submission_id], references: [id], onDelete: Cascade)
-  rank           Int // Rank untuk menentukan urutan (1, 2, atau 3)
+  rank           Int
 }
 
 enum SexType {
