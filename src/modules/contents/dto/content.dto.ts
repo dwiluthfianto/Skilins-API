@@ -20,7 +20,7 @@ export class ContentDto {
     example: 'Fiction',
     type: String,
   })
-  @IsNotEmpty()
+  @IsOptional()
   category_name: string;
 
   @ApiPropertyOptional({

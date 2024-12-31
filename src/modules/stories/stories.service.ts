@@ -381,6 +381,46 @@ export class StoriesService {
         },
       },
       include: {
+        Stories: {
+          include: {
+            author: true,
+            episodes: {
+              where: {
+                order,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      status: 'success',
+      data: {
+        uuid: content.Stories[0].episodes[0].uuid,
+        title: content.Stories[0].episodes[0].title,
+        content: content.Stories[0].episodes[0].content,
+        order: content.Stories[0].episodes[0].order,
+      },
+    };
+  }
+
+  async getEpisode(slugStory: string, order: number) {
+    const content = await this.prisma.contents.findUniqueOrThrow({
+      where: {
+        type: 'STORY',
+        slug: slugStory,
+        Stories: {
+          some: {
+            episodes: {
+              some: {
+                order,
+              },
+            },
+          },
+        },
+      },
+      include: {
         category: true,
         Genres: true,
         Ratings: true,
@@ -402,6 +442,19 @@ export class StoriesService {
       },
     });
 
+    const episodes = content.Stories[0].episodes.sort(
+      (a, b) => a.order - b.order,
+    );
+    const currentEpisodeIndex = episodes.findIndex((ep) => ep.order === order);
+
+    const nextEpisode =
+      currentEpisodeIndex + 1 < episodes.length
+        ? episodes[currentEpisodeIndex + 1]
+        : null;
+
+    const prevEpisode =
+      currentEpisodeIndex - 1 >= 0 ? episodes[currentEpisodeIndex - 1] : null;
+
     return {
       status: 'success',
       data: {
@@ -419,11 +472,25 @@ export class StoriesService {
         category: content.category.name,
         author: content.Stories[0].author.name,
         episode: {
-          uuid: content.Stories[0].episodes[0].uuid,
-          title: content.Stories[0].episodes[0].title,
-          content: content.Stories[0].episodes[0].content,
-          order: content.Stories[0].episodes[0].order,
+          uuid: content.Stories[0].episodes[currentEpisodeIndex].uuid,
+          title: content.Stories[0].episodes[currentEpisodeIndex].title,
+          content: content.Stories[0].episodes[currentEpisodeIndex].content,
+          order: content.Stories[0].episodes[currentEpisodeIndex].order,
         },
+        nextEpisode: nextEpisode
+          ? {
+              uuid: nextEpisode.uuid,
+              title: nextEpisode.title,
+              order: nextEpisode.order,
+            }
+          : null,
+        prevEpisode: prevEpisode
+          ? {
+              uuid: prevEpisode.uuid,
+              title: prevEpisode.title,
+              order: prevEpisode.order,
+            }
+          : null,
         genres: content.Genres?.map((genre) => ({
           id: genre.uuid,
           text: genre.name,
@@ -536,8 +603,12 @@ export class StoriesService {
         story: {
           include: {
             author: {
-              select: {
-                uuid: true,
+              include: {
+                user: {
+                  select: {
+                    uuid: true,
+                  },
+                },
               },
             },
           },
@@ -545,9 +616,9 @@ export class StoriesService {
       },
     });
 
-    if (episode.story.author.uuid !== authorUuid) {
+    if (episode.story.author.user.uuid !== authorUuid) {
       throw new ForbiddenException(
-        'You do not have permission to delete this episode.',
+        'You do not have permission to update this episode.',
       );
     }
 

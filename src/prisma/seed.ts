@@ -84,8 +84,10 @@ async function main() {
     update: {},
     create: {
       uuid: '9bdea8be-e72f-4138-b7d0-f175c0086c63',
-      image_url: null,
-      avatar_url: null,
+      image_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      avatar_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
       name: 'PENGEMBANGAN PERANGKAT LUNAK DAN GIM',
       description:
         'Pengembangan Perangkat Lunak dan Gim merupakan salah satu program keahlian yang ada di SMKN 1 Gunungputri . Program Pengembangan Perangkat Lunak dan GIM atau sebelumnya keahlian Rekayasa Perangkat Lunak (RPL) adalah salah satu kompetensi keahlian dalam bidang Teknologi Komputer dan Informatika yang secara khusus mempelajari tentang pemrograman komputer dan game developer.',

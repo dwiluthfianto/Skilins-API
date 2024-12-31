@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDate, IsInt, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsInt, IsNotEmpty, IsUUID } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
 export class CreatePrakerinDto extends ContentDto {
@@ -17,9 +17,4 @@ export class CreatePrakerinDto extends ContentDto {
 
   @ApiProperty({ example: 'https://example.com/test.pdf', type: String })
   file_url: string;
-
-  @ApiProperty({ example: '2024-09-27T08:49:44.526Z', type: Date })
-  @Transform(({ value }) => new Date(value))
-  @IsDate()
-  published_at?: Date;
 }

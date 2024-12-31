@@ -166,9 +166,14 @@ export class StoriesController {
     return this.storiesService.getStoryBySlug(slug);
   }
 
-  @Get('episodes/:slug')
+  @Get('episode/:slug')
   getOneEpisode(@Param('slug') slug: string, @Query('order') order: number) {
     return this.storiesService.getOneEpisode(slug, order);
+  }
+
+  @Get('episodes/:slug')
+  getEpisode(@Param('slug') slug: string, @Query('order') order: number) {
+    return this.storiesService.getEpisode(slug, order);
   }
 
   @Patch('episodes/:episodeUuid')

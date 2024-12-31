@@ -133,13 +133,18 @@ export class CompetitionsController {
     );
   }
 
-  @Get(':slug')
+  @Get('/detail/:slug')
   findOne(
     @Param('slug') slug: string,
     @Query('status') status: string,
     @Query('type') type: string,
   ) {
-    return this.competitionsService.getCompetitionBySlug(slug, type, status);
+    return this.competitionsService.getCompetitionDetail(slug, type, status);
+  }
+
+  @Get(':slug')
+  findOneBySlug(@Param('slug') slug: string) {
+    return this.competitionsService.getCompetitionBySlug(slug);
   }
 
   @Patch(':competitionUuid')

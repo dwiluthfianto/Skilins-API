@@ -4,7 +4,6 @@ import { UpdatePrakerinDto } from './dto/update-prakerin.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
-import parseArrayInput from 'src/common/utils/parse-array';
 
 @Injectable()
 export class PrakerinService {
@@ -14,18 +13,8 @@ export class PrakerinService {
     private readonly slugHelper: SlugHelper,
   ) {}
   async create(createPrakerinDto: CreatePrakerinDto) {
-    const {
-      title,
-      thumbnail,
-      description,
-      pages,
-      file_url,
-      author_uuid,
-      category_name,
-      tags,
-    } = createPrakerinDto;
-
-    const parsedTags = parseArrayInput(tags);
+    const { title, thumbnail, description, pages, file_url, author_uuid } =
+      createPrakerinDto;
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const userData = await this.prisma.users.findUniqueOrThrow({
@@ -47,12 +36,7 @@ export class PrakerinService {
         thumbnail,
         description,
         slug: newSlug,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        category: { connect: { name: category_name } },
+        category: { connect: { name: 'Non-fiction' } },
         Prakerin: {
           create: {
             author: { connect: { uuid: userData.Students[0].uuid } },
@@ -356,23 +340,11 @@ export class PrakerinService {
   }
 
   async update(contentUuid: string, updatePrakerinDto: UpdatePrakerinDto) {
-    const {
-      title,
-      thumbnail,
-      description,
-      pages,
-      file_url,
-      published_at,
-      author_uuid,
-      category_name,
-      tags,
-    } = updatePrakerinDto;
+    const { title, thumbnail, description, pages, file_url, author_uuid } =
+      updatePrakerinDto;
 
     const contentCheck = await this.uuidHelper.validateUuidContent(contentUuid);
     const creator = await this.uuidHelper.validateUuidCreator(author_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_name);
-
-    const parsedTags = parseArrayInput(tags);
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.update({
@@ -382,22 +354,15 @@ export class PrakerinService {
         thumbnail,
         description,
         slug: newSlug,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        category: { connect: { id: category.id } },
         Prakerin: {
           update: {
             where: {
               content_id: contentCheck.id,
             },
             data: {
-              author_id: creator.id,
+              author_id: creator.Students[0].id,
               pages,
               file_url,
-              published_at,
             },
           },
         },
@@ -406,7 +371,7 @@ export class PrakerinService {
 
     return {
       status: 'success',
-      message: 'prakerin added successfully!',
+      message: 'prakerin updated successfully!',
       data: {
         uuid: content.uuid,
       },

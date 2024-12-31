@@ -241,7 +241,7 @@ export class CompetitionsService {
     return this.getPaginatedResponse(page, limit, total, data);
   }
 
-  async getCompetitionBySlug(
+  async getCompetitionDetail(
     slug: string,
     type: string,
     status: string = ContentStatus.APPROVED,
@@ -314,6 +314,40 @@ export class CompetitionsService {
     return {
       status: 'success',
       data: competition,
+    };
+  }
+
+  async getCompetitionBySlug(slug: string) {
+    const competition = await this.prisma.competitions.findUniqueOrThrow({
+      where: { slug },
+      include: {
+        EvaluationParameter: true,
+        Judges: {
+          include: {
+            user: {
+              select: {
+                profile_url: true,
+                full_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      status: 'success',
+      data: {
+        ...competition,
+        Judges: competition.Judges.map((item) => ({
+          id: item.uuid,
+          text: item.user.full_name,
+        })),
+        EvaluationParameter: competition.EvaluationParameter.map((item) => ({
+          parameterName: item.parameterName,
+          weight: item.weight,
+        })),
+      },
     };
   }
 
