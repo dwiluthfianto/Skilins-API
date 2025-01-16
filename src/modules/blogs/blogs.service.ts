@@ -4,7 +4,10 @@ import { UpdateBlogDto } from './dto/update-blog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Prisma } from '@prisma/client';
+import parseArrayInput from 'src/common/utils/parse-array';
+import { subMonths } from 'date-fns';
+import { FindBlogQueryDto } from '../contents/dto/find-blog-query.dto';
 
 @Injectable()
 export class BlogsService {
@@ -18,19 +21,7 @@ export class BlogsService {
     const { title, thumbnail, description, tags, category_name } =
       createBlogDto;
 
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
+    const parsedTags = parseArrayInput(tags);
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const content = await this.prisma.contents.create({
@@ -68,165 +59,68 @@ export class BlogsService {
     };
   }
 
-  async findAll(page: number, limit: number) {
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: { type: 'BLOG' },
-      include: {
-        category: true,
-        Tags: true,
-        Blogs: {
-          include: {
-            author: true,
+  async fetchBlogs(findBlogQueryDto: FindBlogQueryDto) {
+    const { page, limit, tag, search, status, latest } = findBlogQueryDto;
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
           },
-        },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
       },
-    });
-
-    const total = await this.prisma.blogs.count();
-
-    return {
-      status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        slug: content.slug,
-        tags: content.Tags.map((tag) => ({
-          id: tag.uuid,
-          text: tag.name,
-        })),
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Blogs[0].author.full_name,
-      })),
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
     };
-  }
 
-  async findByCategory(page: number, limit: number, category: string) {
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'BLOG',
-        category: {
-          name: {
-            equals: category,
-            mode: 'insensitive',
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
           },
-        },
-      },
-      include: {
-        category: true,
-        Tags: true,
-        Blogs: {
-          include: {
-            author: true,
-          },
-        },
-      },
-    });
+        }
+      : {};
 
-    const total = await this.prisma.blogs.count();
-
-    return {
-      status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        slug: content.slug,
-        tags: content.Tags.map((tag) => ({
-          id: tag.uuid,
-          text: tag.name,
-        })),
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Blogs[0].author.full_name,
-      })),
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
-    };
-  }
-
-  async findByGenre(page: number, limit: number, tag: string) {
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
-      where: {
-        type: 'BLOG',
-        Genres: {
-          some: {
-            name: {
-              equals: tag,
-              mode: 'insensitive',
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
             },
           },
-        },
-      },
-      include: {
-        category: true,
-        Tags: true,
-        Blogs: {
-          include: {
-            author: true,
-          },
-        },
-      },
-    });
+        }
+      : {};
 
-    const total = await this.prisma.blogs.count();
-
-    return {
-      status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        slug: content.slug,
-        tags: content.Tags.map((tag) => ({
-          id: tag.uuid,
-          text: tag.name,
-        })),
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Blogs[0].author.full_name,
-      })),
-      totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
+    const filter = {
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...tagFilter,
     };
-  }
 
-  async findLatest(page: number, limit: number, week: number) {
-    const currentDate = new Date();
-    const oneWeekAgo = new Date();
-    const weeks = week * 7;
-    oneWeekAgo.setDate(currentDate.getDate() - weeks);
-    const contents = await this.prisma.contents.findMany({
-      skip: (page - 1) * limit,
-      take: limit,
+    const blogs = await this.prisma.contents.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
         type: 'BLOG',
-        created_at: {
-          gte: oneWeekAgo,
-          lte: currentDate,
-        },
-      },
-      orderBy: {
-        id: 'asc',
+        ...filter,
       },
       include: {
         category: true,
         Tags: true,
+        Ratings: true,
         Blogs: {
           include: {
             author: true,
@@ -235,26 +129,44 @@ export class BlogsService {
       },
     });
 
-    const total = await this.prisma.blogs.count();
+    const total = await this.prisma.contents.count({
+      where: { type: 'BLOG', ...filter },
+    });
+
+    const data = await Promise.all(
+      blogs.map(async (blog) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: blog.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+
+        return {
+          uuid: blog.uuid,
+          thumbnail: blog.thumbnail,
+          title: blog.title,
+          description: blog.description,
+          slug: blog.slug,
+          tags: blog.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          updated_at: blog.updated_at,
+          category: blog.category.name,
+          author: blog.Blogs[0].author.full_name,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      data: contents.map((content) => ({
-        uuid: content.uuid,
-        thumbnail: content.thumbnail,
-        title: content.title,
-        description: content.description,
-        slug: content.slug,
-        tags: content.Tags.map((tag) => ({
-          id: tag.uuid,
-          text: tag.name,
-        })),
-        updated_at: content.updated_at,
-        category: content.category.name,
-        author: content.Blogs[0].author.full_name,
-      })),
+      data,
       totalPages: total,
-      page,
-      lastPage: Math.ceil(total / limit),
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
 
@@ -399,19 +311,7 @@ export class BlogsService {
 
     const content = await this.uuidHelper.validateUuidContent(contentUuid);
 
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
+    const parsedTags = parseArrayInput(tags);
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
 
     const blog = await this.prisma.contents.update({

@@ -14,11 +14,14 @@ import {
   Query,
   Req,
   ParseFilePipeBuilder,
+  Res,
 } from '@nestjs/common';
 import { VideoPodcastsService } from './video-podcasts.service';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
 import { UpdateVideoPodcastDto } from './dto/update-video-podcast.dto';
 import {
+  ApiBearerAuth,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiResponse,
@@ -32,10 +35,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
 import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
-import { ContentUserDto } from '../contents/dto/content-user.dto';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 
-@ApiTags('Contents')
+@ApiTags('Videos')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/videos', version: '1' })
 export class VideoPodcastsController {
   constructor(
@@ -49,8 +52,8 @@ export class VideoPodcastsController {
   @ApiCreatedResponse({
     type: VideoPodcast,
   })
-  @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('thumbnail'))
+  @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -66,6 +69,7 @@ export class VideoPodcastsController {
     )
     thumbnail: Express.Multer.File,
     @Body() createVideoPodcastDto: CreateVideoPodcastDto,
+    @Res() res: Response,
   ) {
     let thumbFilename: string;
 
@@ -93,7 +97,7 @@ export class VideoPodcastsController {
       const result = await this.videoPodcastsService.create(
         createVideoPodcastDto,
       );
-      return result;
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during audio podcast creation:', e.message);
 
@@ -105,9 +109,12 @@ export class VideoPodcastsController {
         console.error('Failed to delete files:', error);
       }
 
-      return {
-        message: 'Failed to create audio podcast and cleaned up uploaded ',
-      };
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message:
+          'Failed to create video podcast and cleaned up uploaded files.',
+        detail: e.message,
+      });
     }
   }
 
@@ -118,18 +125,7 @@ export class VideoPodcastsController {
   })
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: FindContentQueryDto) {
-    const { limit, page, tag, category, genre } = query;
-    if (category) {
-      return this.videoPodcastsService.findByCategory(page, limit, category);
-    }
-    if (tag) {
-      return this.videoPodcastsService.findByTag(page, limit, tag);
-    }
-
-    if (genre) {
-      return this.videoPodcastsService.findByTag(page, limit, genre);
-    }
-    return this.videoPodcastsService.findAll(page, limit);
+    return this.videoPodcastsService.fetchVideos(query);
   }
 
   @Get('student')
@@ -140,29 +136,12 @@ export class VideoPodcastsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Student')
   @HttpCode(HttpStatus.OK)
-  async findUserVideo(@Req() req: Request, @Query() query: ContentUserDto) {
-    const user = req.user;
-    const { page, limit, status } = query;
-    return await this.videoPodcastsService.findUserContent(
-      user['sub'],
-      page,
-      limit,
-      status,
-    );
-  }
-
-  @Get('latest')
-  @ApiOkResponse({
-    type: VideoPodcast,
-    isArray: true,
-  })
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
+  async findUserVideo(
+    @Req() req: Request,
+    @Query() query: FindContentQueryDto,
   ) {
-    return this.videoPodcastsService.findLatest(page, limit, week);
+    const user = req.user;
+    return await this.videoPodcastsService.fetchUserVideos(user['sub'], query);
   }
 
   @Get(':slug')
@@ -181,19 +160,15 @@ export class VideoPodcastsController {
   @ApiOkResponse({
     type: VideoPodcast,
   })
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('uuid') uuid: string,
     @UploadedFile()
     thumbnail: Express.Multer.File,
     @Body() updateVideoPodcastDto: UpdateVideoPodcastDto,
+    @Res() res: Response,
   ) {
-    const audio = await this.videoPodcastsService.update(
-      uuid,
-      updateVideoPodcastDto,
-    );
-
-    if (audio.status === 'success') {
+    try {
       const isExist = await this.videoPodcastsService.findOne(uuid);
 
       if (thumbnail && thumbnail.size > 0) {
@@ -209,9 +184,21 @@ export class VideoPodcastsController {
           throw new Error(`Failed to update thumbnail: ${thumbnailError}`);
         }
       }
-    }
 
-    return audio;
+      const updatedVideo = await this.videoPodcastsService.update(
+        uuid,
+        updateVideoPodcastDto,
+      );
+
+      return res.status(HttpStatus.OK).json(updatedVideo);
+    } catch (error) {
+      console.error('Error updating video:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update video',
+        detail: error.message,
+      });
+    }
   }
 
   @Delete(':uuid')

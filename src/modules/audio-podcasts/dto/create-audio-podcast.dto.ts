@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import { ContentDto } from 'src/modules/contents/dto/content.dto';
 
@@ -9,16 +9,13 @@ export class CreateAudioPodcastDto extends ContentDto {
     type: Number,
   })
   @IsNotEmpty()
-  @Transform(({ value }) => {
-    console.log('Transforming duration:', value);
-    return parseFloat(value);
-  })
+  @Type(() => Number)
   @IsNumber()
   duration: number;
 
   @ApiProperty({
-    example: 'https://example.com/video.mp4',
     type: String,
+    format: 'binary',
   })
   file_url: string;
 

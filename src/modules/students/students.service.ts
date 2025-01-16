@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { RoleType } from '@prisma/client';
+import { Prisma, RoleType } from '@prisma/client';
+import { FindStudentDto } from './dto/find-student.dto';
 
 @Injectable()
 export class StudentsService {
@@ -10,29 +11,83 @@ export class StudentsService {
   async create(createStudentDto: CreateStudentDto) {
     const { nis, name, major, birthplace, birthdate, sex, user_uuid } =
       createStudentDto;
-    const student = await this.prisma.students.create({
-      data: {
-        nis,
-        name,
-        birthdate,
-        birthplace,
-        sex,
-        user: { connect: { uuid: user_uuid } },
-        major: { connect: { name: major } },
-      },
+
+    const res = await this.prisma.$transaction(async (p) => {
+      const student = await p.students.create({
+        data: {
+          nis,
+          name,
+          birthdate,
+          birthplace,
+          sex,
+          user: { connect: { uuid: user_uuid } },
+          major: { connect: { name: major } },
+        },
+      });
+
+      return {
+        status: 'success',
+        message: 'student succesfully added!',
+        data: { uuid: student.uuid },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'student succesfully added!',
-      data: { uuid: student.uuid },
-    };
+    return res;
   }
 
-  async findAll() {
+  async findAll(query: FindStudentDto) {
+    const { page, limit, nis, name, major, status } = query;
+
+    const nisFilter = {
+      nis: {
+        contains: nis,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const nameFilter = {
+      name: {
+        contains: name,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const majorFilter = major
+      ? {
+          major: {
+            name: {
+              equals: major,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const filter = {
+      ...nisFilter,
+      ...nameFilter,
+      ...majorFilter,
+      ...statusFilter,
+    };
+
     const students = await this.prisma.students.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: { ...filter },
       include: { major: true },
     });
+
+    const total = await this.prisma.students.count({
+      where: { ...filter },
+    });
+
     return {
       status: 'success',
       data: students.map((student) => ({
@@ -45,6 +100,9 @@ export class StudentsService {
         major: student.major.name,
         status: student.status,
       })),
+      totalPages: total,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
 
@@ -72,26 +130,30 @@ export class StudentsService {
   async update(uuid: string, updateStudentDto: UpdateStudentDto) {
     const { nis, name, major, birthplace, birthdate, sex } = updateStudentDto;
 
-    await this.prisma.majors.findUniqueOrThrow({ where: { name: major } });
-    await this.prisma.students.findUniqueOrThrow({ where: { uuid } });
+    const res = await this.prisma.$transaction(async (p) => {
+      await this.prisma.majors.findUniqueOrThrow({ where: { name: major } });
+      await this.prisma.students.findUniqueOrThrow({ where: { uuid } });
 
-    const student = await this.prisma.students.update({
-      where: { uuid },
-      data: {
-        nis,
-        name,
-        birthdate,
-        birthplace,
-        sex,
-        major: { connect: { name: major } },
-      },
+      const student = await p.students.update({
+        where: { uuid },
+        data: {
+          nis,
+          name,
+          birthdate,
+          birthplace,
+          sex,
+          major: { connect: { name: major } },
+        },
+      });
+
+      return {
+        status: 'success',
+        message: 'student succesfully updated!',
+        data: { uuid: student.uuid },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'student succesfully updated!',
-      data: { uuid: student.uuid },
-    };
+    return res;
   }
 
   async remove(uuid: string) {

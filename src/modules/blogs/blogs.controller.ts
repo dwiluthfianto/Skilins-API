@@ -12,14 +12,20 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
-  HttpException,
   Req,
   ParseFilePipeBuilder,
+  Res,
 } from '@nestjs/common';
 import { BlogsService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Blog } from './entities/blog.entity';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -27,9 +33,11 @@ import { Roles } from '../roles/roles.decorator';
 import { SupabaseService } from 'src/supabase';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import { FindBlogQueryDto } from '../contents/dto/find-blog-query.dto';
 
-@ApiTags('Contents')
+@ApiTags('Blogs')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/blogs', version: '1' })
 export class BlogsController {
   constructor(
@@ -44,7 +52,7 @@ export class BlogsController {
     type: Blog,
   })
   @UseInterceptors(FileInterceptor('thumbnail'))
-  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -60,6 +68,7 @@ export class BlogsController {
     )
     thumbnail: Express.Multer.File,
     @Req() req: Request,
+    @Res() res: Response,
     @Body() createBlogDto: CreateBlogDto,
   ) {
     let thumbnailFilename: string;
@@ -79,7 +88,8 @@ export class BlogsController {
         thumbnailFilename = fileName;
         createBlogDto.thumbnail = url;
       }
-      return await this.blogsService.create(user['sub'], createBlogDto);
+      const result = await this.blogsService.create(user['sub'], createBlogDto);
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during Blog creation:', e.message);
 
@@ -90,13 +100,12 @@ export class BlogsController {
       if (!success) {
         console.error('Failed to delete files:', error);
       }
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: `Blog creation failed: ${e.message}. ${thumbnailFilename ? 'Failed to clean up uploaded file' : ''}`,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to create blog and cleaned up uploaded files.',
+        detail: e.message,
+      });
     }
   }
 
@@ -106,33 +115,8 @@ export class BlogsController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('category') category: string,
-    @Query('genre') genre: string,
-  ) {
-    if (category) {
-      return this.blogsService.findByCategory(page, limit, category);
-    } else if (genre) {
-      return this.blogsService.findByGenre(page, limit, genre);
-    } else {
-      return this.blogsService.findAll(page, limit);
-    }
-  }
-
-  @Get('latest')
-  @ApiOkResponse({
-    type: Blog,
-    isArray: true,
-  })
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
-  ) {
-    return this.blogsService.findLatest(page, limit, week);
+  findAll(@Query() query: FindBlogQueryDto) {
+    return this.blogsService.fetchBlogs(query);
   }
 
   @Get(':slug')
@@ -151,7 +135,7 @@ export class BlogsController {
     type: Blog,
   })
   @UseInterceptors(FileInterceptor('thumbnail'))
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -169,14 +153,11 @@ export class BlogsController {
     @Req() req: Request,
     @Param('contentUuid') contentUuid: string,
     @Body() updateBlogDto: UpdateBlogDto,
+    @Res() res: Response,
   ) {
     const user = req.user;
-    const blog = await this.blogsService.update(
-      user['sub'],
-      contentUuid,
-      updateBlogDto,
-    );
-    if (blog.status === 'success') {
+
+    try {
       const isExist = await this.blogsService.findOneByUuid(contentUuid);
       if (thumbnail && thumbnail.size > 0) {
         const avatarFilename = isExist.data.thumbnail.split('/').pop();
@@ -188,9 +169,22 @@ export class BlogsController {
           throw new Error(`Failed to update thumbnail: ${error}`);
         }
       }
-    }
 
-    return blog;
+      const blog = await this.blogsService.update(
+        user['sub'],
+        contentUuid,
+        updateBlogDto,
+      );
+
+      return res.status(HttpStatus.OK).json(blog);
+    } catch (error) {
+      console.error('Error updating blog:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update blog',
+        detail: error.message,
+      });
+    }
   }
 
   @Delete(':contentUuid')

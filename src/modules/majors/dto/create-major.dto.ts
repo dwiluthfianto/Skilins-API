@@ -1,20 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateMajorDto {
-  @ApiProperty({ example: 'This is a name', type: String })
+  @ApiProperty({ example: 'Rekayasa Perangkat Lunak', type: String })
   @IsNotEmpty()
+  @IsString()
   name: string;
 
-  @ApiPropertyOptional({ example: 'This is an image', type: String })
+  @ApiPropertyOptional({ type: String, format: 'binary' })
   @IsOptional()
   image_url?: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })
   @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'This is a avatar', type: String })
+  @ApiPropertyOptional({ type: String, format: 'binary' })
   @IsOptional()
   avatar_url?: string;
 }

@@ -15,13 +15,14 @@ import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBasicAuth, ApiTags } from '@nestjs/swagger';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthResetPasswordDto } from './dto/auth-reset-password.dto';
 import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
 import { AuthRegisterStudentDto } from './dto/auth-register-student.dto';
 
 @ApiTags('Auth')
+@ApiBasicAuth('JWT-auth')
 @Controller({ path: 'api/v1/auth', version: '1' })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

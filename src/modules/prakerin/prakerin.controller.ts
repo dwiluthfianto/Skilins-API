@@ -13,6 +13,7 @@ import {
   UploadedFiles,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
 import { PrakerinService } from './prakerin.service';
 import { CreatePrakerinDto } from './dto/create-prakerin.dto';
@@ -20,16 +21,22 @@ import { UpdatePrakerinDto } from './dto/update-prakerin.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Prakerin } from './entities/prakerin.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { SupabaseService } from 'src/supabase';
-import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
-import { Request } from 'express';
-import { ContentUserDto } from '../contents/dto/content-user.dto';
+import { Request, Response } from 'express';
+import { FindPrakerinQueryDto } from '../contents/dto/find-prakerin-query.dto';
 
-@ApiTags('Contents')
+@ApiTags('Prakerin')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/prakerin', version: '1' })
 export class PrakerinController {
   constructor(
@@ -46,7 +53,7 @@ export class PrakerinController {
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
-  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFiles()
     files: {
@@ -54,6 +61,7 @@ export class PrakerinController {
       file_url?: Express.Multer.File[];
     },
     @Body() createPrakerinDto: CreatePrakerinDto,
+    @Res() res: Response,
   ) {
     let thumbFilename: string;
     let fileFilename: string;
@@ -97,7 +105,7 @@ export class PrakerinController {
       }
 
       const result = await this.prakerinService.create(createPrakerinDto);
-      return result;
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during report podcast creation:', e.message);
 
@@ -110,9 +118,11 @@ export class PrakerinController {
         console.error('Failed to delete files:', error);
       }
 
-      return {
-        message: 'Failed to create report and cleaned up uploaded files.',
-      };
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to create prakerin and cleaned up uploaded files.',
+        detail: e.message,
+      });
     }
   }
 
@@ -122,21 +132,8 @@ export class PrakerinController {
     isArray: true,
   })
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: FindContentQueryDto) {
-    const { limit, page, category, tag, genre } = query;
-    if (category) {
-      return this.prakerinService.findByCategory(page, limit, category);
-    }
-
-    if (tag) {
-      return this.prakerinService.findByCategory(page, limit, tag);
-    }
-
-    if (genre) {
-      return this.prakerinService.findByCategory(page, limit, genre);
-    }
-
-    return this.prakerinService.findAll(page, limit);
+  findAll(@Query() query: FindPrakerinQueryDto) {
+    return this.prakerinService.fetchPrakerin(query);
   }
 
   @Get('student')
@@ -147,24 +144,12 @@ export class PrakerinController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Student')
   @HttpCode(HttpStatus.OK)
-  async findUserPrakerin(@Req() req: Request, @Query() query: ContentUserDto) {
-    const user = req.user;
-    const { page, limit } = query;
-    return await this.prakerinService.findUserContent(user['sub'], page, limit);
-  }
-
-  @Get('latest')
-  @ApiOkResponse({
-    type: Prakerin,
-    isArray: true,
-  })
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('days') days: number = 7,
+  async findUserPrakerin(
+    @Req() req: Request,
+    @Query() query: FindPrakerinQueryDto,
   ) {
-    return this.prakerinService.findLatest(page, limit, days);
+    const user = req.user;
+    return await this.prakerinService.fetchUserPrakerin(user['sub'], query);
   }
 
   @Get(':slug')
@@ -185,7 +170,7 @@ export class PrakerinController {
   @ApiOkResponse({
     type: Prakerin,
   })
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('uuid') uuid: string,
     @UploadedFiles()
@@ -194,10 +179,17 @@ export class PrakerinController {
       file_url?: Express.Multer.File[];
     },
     @Body() updatePrakerinDto: UpdatePrakerinDto,
+    @Res() res: Response,
   ) {
-    const report = await this.prakerinService.update(uuid, updatePrakerinDto);
-    if (report.status === 'success') {
+    try {
       const isExist = await this.prakerinService.findOne(uuid);
+
+      if (!isExist) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: 'failed',
+          message: 'Prakerin not found',
+        });
+      }
 
       if (files.thumbnail && files.thumbnail.length > 0) {
         const thumbFilename = isExist.data.thumbnail.split('/').pop();
@@ -225,9 +217,21 @@ export class PrakerinController {
           throw new Error(`Failed to update file: ${fileError}`);
         }
       }
-    }
 
-    return report;
+      const updatedPrakerin = await this.prakerinService.update(
+        uuid,
+        updatePrakerinDto,
+      );
+
+      return res.status(HttpStatus.OK).json(updatedPrakerin);
+    } catch (error) {
+      console.error('Error updating prakerin:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update prakerin',
+        detail: error.message,
+      });
+    }
   }
 
   @Delete(':uuid')

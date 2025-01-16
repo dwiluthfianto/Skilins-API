@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBasicAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
@@ -10,6 +10,7 @@ import { DeleteCommentDto } from './dto/delete-comment.dto';
 @ApiTags('Like & Comment')
 @Controller({ path: 'api/v1/comments', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+@ApiBasicAuth('JWT-auth')
 @Roles('User', 'Student', 'Judge', 'Staff')
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}

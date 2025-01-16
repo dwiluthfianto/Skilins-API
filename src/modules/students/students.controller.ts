@@ -9,17 +9,28 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Query,
+  Res,
 } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBasicAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Student } from './entities/student.entity';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { FindStudentDto } from './dto/find-student.dto';
+import { Response } from 'express';
 
 @ApiTags('Student')
+@ApiBasicAuth('JWT-auth')
 @Controller({ path: 'api/v1/students', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class StudentsController {
@@ -29,10 +40,22 @@ export class StudentsController {
   @ApiCreatedResponse({
     type: Student,
   })
-  @HttpCode(HttpStatus.CREATED)
   @Roles('User')
-  async create(@Body() createStudentDto: CreateStudentDto) {
-    return await this.studentsService.create(createStudentDto);
+  @ApiConsumes('multipart/form-data')
+  async create(
+    @Body() createStudentDto: CreateStudentDto,
+    @Res() res: Response,
+  ) {
+    try {
+      const result = await this.studentsService.create(createStudentDto);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to create student.',
+        detail: error.message,
+      });
+    }
   }
 
   @Get()
@@ -42,8 +65,8 @@ export class StudentsController {
   })
   @HttpCode(HttpStatus.OK)
   @Roles('Staff')
-  findAll() {
-    return this.studentsService.findAll();
+  findAll(@Query() query: FindStudentDto) {
+    return this.studentsService.findAll(query);
   }
 
   @Get(':uuid')
@@ -65,8 +88,18 @@ export class StudentsController {
   async update(
     @Param('uuid') uuid: string,
     @Body() updateStudentDto: UpdateStudentDto,
+    @Res() res: Response,
   ) {
-    return await this.studentsService.update(uuid, updateStudentDto);
+    try {
+      const result = await this.studentsService.update(uuid, updateStudentDto);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update student.',
+        detail: error.message,
+      });
+    }
   }
 
   @Patch(':uuid/verify-student')

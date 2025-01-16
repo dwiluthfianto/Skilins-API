@@ -12,11 +12,14 @@ import {
   UploadedFiles,
   UseInterceptors,
   Query,
+  Res,
 } from '@nestjs/common';
 import { EbooksService } from './ebooks.service';
 import { CreateEbookDto } from './dto/create-ebook.dto';
 import { UpdateEbookDto } from './dto/update-ebook.dto';
 import {
+  ApiBearerAuth,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiResponse,
@@ -30,9 +33,10 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
-import { ContentStatus } from '@prisma/client';
+import { Response } from 'express';
 
-@ApiTags('Contents')
+@ApiTags('Ebooks')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/ebooks', version: '1' })
 export class EbooksController {
   constructor(
@@ -50,11 +54,11 @@ export class EbooksController {
     status: 201,
     description: 'The record has been successfully created.',
   })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
-  @HttpCode(HttpStatus.CREATED)
   async create(
     @UploadedFiles()
     files: {
@@ -62,6 +66,7 @@ export class EbooksController {
       file_url?: Express.Multer.File[];
     },
     @Body() createEbookDto: CreateEbookDto,
+    @Res() res: Response,
   ) {
     let thumbFilename: string;
     let fileFilename: string;
@@ -104,7 +109,7 @@ export class EbooksController {
         createEbookDto.file_url = fileUrl;
       }
       const result = await this.ebooksService.create(createEbookDto);
-      return result;
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during ebook podcast creation:', e.message);
 
@@ -117,10 +122,11 @@ export class EbooksController {
         console.error('Failed to delete files:', error);
       }
 
-      return {
-        message:
-          'Failed to create ebook podcast and cleaned up uploaded files.',
-      };
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to create ebook and cleaned up uploaded files.',
+        detail: e.message,
+      });
     }
   }
 
@@ -131,36 +137,7 @@ export class EbooksController {
   })
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: FindContentQueryDto) {
-    const { page, limit, category, tag, genre, search } = query;
-
-    if (category) {
-      return this.ebooksService.findByCategory(page, limit, category);
-    }
-
-    if (tag) {
-      return this.ebooksService.findByTag(page, limit, tag);
-    }
-
-    if (genre) {
-      return this.ebooksService.findByGenre(page, limit, genre);
-    }
-
-    return this.ebooksService.findAll(page, limit, search);
-  }
-
-  @Get('latest')
-  @ApiOkResponse({
-    type: Ebook,
-    isArray: true,
-  })
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
-    @Query('status') status: ContentStatus,
-  ) {
-    return this.ebooksService.findLatest(page, limit, week, status);
+    return this.ebooksService.fetchEbooks(query);
   }
 
   @Get(':slug')
@@ -181,7 +158,7 @@ export class EbooksController {
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @UploadedFiles()
     files: {
@@ -190,40 +167,62 @@ export class EbooksController {
     },
     @Param('contentUuid') contentUuid: string,
     @Body() updateEbookDto: UpdateEbookDto,
+    @Res() res: Response,
   ) {
-    const ebook = await this.ebooksService.update(contentUuid, updateEbookDto);
+    try {
+      const currentEbook = await this.ebooksService.findOne(contentUuid);
 
-    if (ebook.status === 'success') {
-      const isExist = await this.ebooksService.findOne(contentUuid);
+      if (!currentEbook) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: 'failed',
+          message: 'Ebook not found',
+        });
+      }
 
       if (files?.thumbnail && files.thumbnail.length > 0) {
-        const thumbFilename = isExist.data.thumbnail.split('/').pop();
-
-        const { success: thumbnailSuccess, error: thumbnailError } =
+        const currentThumbFilename = currentEbook.data.thumbnail
+          ?.split('/')
+          .pop();
+        const { success: thumbUpdateSuccess, error: thumbUpdateError } =
           await this.supabaseService.updateFile(
-            `${ContentFileEnum.thumbnail}${thumbFilename}`,
+            `${ContentFileEnum.thumbnail}${currentThumbFilename}`,
             files.thumbnail[0],
           );
 
-        if (!thumbnailSuccess) {
-          throw new Error(`Failed to update thumbnail: ${thumbnailError}`);
+        if (!thumbUpdateSuccess) {
+          throw new Error(`Failed to update thumbnail: ${thumbUpdateError}`);
         }
       }
 
       if (files?.file_url && files.file_url.length > 0) {
-        const fileFilename = isExist.data.file_url.split('/').pop();
-        const { success: fileSuccess, error: fileError } =
+        const currentFileFilename = currentEbook.data.file_url
+          ?.split('/')
+          .pop();
+        const { success: fileUpdateSuccess, error: fileUpdateError } =
           await this.supabaseService.updateFile(
-            `${ContentFileEnum.file_ebook}${fileFilename}`,
+            `${ContentFileEnum.file_ebook}${currentFileFilename}`,
             files.file_url[0],
           );
 
-        if (!fileSuccess) {
-          throw new Error(`Failed to update file: ${fileError}`);
+        if (!fileUpdateSuccess) {
+          throw new Error(`Failed to update file: ${fileUpdateError}`);
         }
       }
+
+      const updatedEbook = await this.ebooksService.update(
+        contentUuid,
+        updateEbookDto,
+      );
+
+      return res.status(HttpStatus.OK).json(updatedEbook);
+    } catch (error) {
+      console.error('Error updating ebook:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update ebook',
+        detail: error.message,
+      });
     }
-    return ebook;
   }
 
   @Delete(':uuid')

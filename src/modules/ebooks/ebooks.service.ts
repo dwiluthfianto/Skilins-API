@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateEbookDto } from './dto/create-ebook.dto';
 import { UpdateEbookDto } from './dto/update-ebook.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Prisma } from '@prisma/client';
 import parseArrayInput from 'src/common/utils/parse-array';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { subMonths } from 'date-fns';
 
 @Injectable()
 export class EbooksService {
@@ -31,51 +33,145 @@ export class EbooksService {
       genres,
     } = createContentDto;
 
-    const parsedGenres = parseArrayInput(genres);
-    const parsedTags = parseArrayInput(tags);
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const content = await this.prisma.contents.create({
-      data: {
-        type: 'EBOOK',
-        title,
-        thumbnail,
-        description,
-        status: ContentStatus.APPROVED,
-        slug: newSlug,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        category: { connect: { name: category_name } },
-        Ebooks: {
-          create: {
-            author: author,
-            pages: pages,
-            publication: publication,
-            file_url: file_url,
-            isbn: isbn,
-            release_date: release_date,
+    const res = await this.prisma.$transaction(async (p) => {
+      const parsedGenres = parseArrayInput(genres);
+      const parsedTags = parseArrayInput(tags);
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+
+      if (!thumbnail) {
+        throw new BadRequestException(
+          'File is required, please provide a file',
+        );
+      }
+
+      if (!file_url) {
+        throw new BadRequestException(
+          'File is required, please provide a file',
+        );
+      }
+      const content = await p.contents.create({
+        data: {
+          type: 'EBOOK',
+          title,
+          thumbnail,
+          description,
+          status: ContentStatus.APPROVED,
+          slug: newSlug,
+          Tags: {
+            connect: parsedTags?.map((tag) => ({
+              name: tag.text,
+            })),
+          },
+          category: { connect: { name: category_name } },
+          Ebooks: {
+            create: {
+              author: author,
+              pages: pages,
+              publication: publication,
+              file_url: file_url,
+              isbn: isbn,
+              release_date: release_date,
+            },
+          },
+          Genres: {
+            connect: parsedGenres?.map((tag) => ({
+              name: tag.text,
+            })),
           },
         },
-        Genres: {
-          connect: parsedGenres?.map((tag) => ({
-            name: tag.text,
-          })),
+      });
+
+      return {
+        status: 'success',
+        message: 'EBOOK added successfully.',
+        data: {
+          uuid: content.uuid,
         },
-      },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'EBOOK added successfully.',
-      data: {
-        uuid: content.uuid,
-      },
-    };
+    return res;
   }
 
-  async fetchEbooks(page?: number, limit?: number, filter: object = {}) {
+  async fetchEbooks(findContentQueryDto: FindContentQueryDto) {
+    const { page, limit, category, tag, genre, search, status, latest } =
+      findContentQueryDto;
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const categoryFilter = category
+      ? {
+          category: {
+            name: {
+              equals: category,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const genreFilter = genre
+      ? {
+          Genres: {
+            some: {
+              name: {
+                equals: genre,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const filter = {
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...categoryFilter,
+      ...genreFilter,
+      ...tagFilter,
+    };
+
     const contents = await this.prisma.contents.findMany({
       ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
@@ -91,11 +187,12 @@ export class EbooksService {
       },
     });
 
-    const total = await this.prisma.ebooks.count();
+    const total = await this.prisma.contents.count({
+      where: { type: 'EBOOK', ...filter },
+    });
 
     const data = await Promise.all(
       contents.map(async (content) => {
-        // Calculate average rating for each content
         const avgRatingResult = await this.prisma.ratings.aggregate({
           where: { content_id: content.id },
           _avg: {
@@ -132,99 +229,13 @@ export class EbooksService {
       }),
     );
 
-    return { data, total };
-  }
-
-  async getPaginatedResponse(
-    page: number,
-    limit: number,
-    total: number,
-    data: any[],
-  ) {
     return {
       status: 'success',
       data,
-      totalPages: limit ? Math.ceil(total / limit) : 1,
+      totalPages: total,
       page: page || 1,
       lastPage: limit ? Math.ceil(total / limit) : 1,
     };
-  }
-
-  async findAll(page?: number, limit?: number, search: string = '') {
-    const filter = {
-      title: {
-        contains: search,
-        mode: 'insensitive',
-      },
-    };
-    const { data, total } = await this.fetchEbooks(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByCategory(page: number, limit: number, category: string) {
-    const filter = {
-      category: {
-        name: {
-          equals: category,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchEbooks(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByGenre(page: number, limit: number, genre: string) {
-    const filter = {
-      Genres: {
-        some: {
-          name: {
-            equals: genre,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchEbooks(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByTag(page: number, limit: number, tag: string) {
-    const filter = {
-      Tags: {
-        some: {
-          name: {
-            equals: tag,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchEbooks(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findLatest(
-    page: number,
-    limit: number,
-    week: number,
-    status: string = ContentStatus.APPROVED,
-  ) {
-    const currentDate = new Date();
-    const weeks = week * 7;
-    const oneWeekAgo = new Date(
-      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
-    );
-
-    const filter = {
-      status: status as ContentStatus,
-      created_at: {
-        gte: oneWeekAgo,
-        lte: currentDate,
-      },
-    };
-    const { data, total } = await this.fetchEbooks(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
   }
 
   async findOne(uuid: string) {
@@ -378,73 +389,59 @@ export class EbooksService {
       genres,
     } = updateContentDto;
 
-    const content = await this.uuidHelper.validateUuidContent(uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_name);
+    const res = await this.prisma.$transaction(async (p) => {
+      const content = await this.uuidHelper.validateUuidContent(uuid);
+      const category =
+        await this.uuidHelper.validateUuidCategory(category_name);
 
-    let parsedGenres;
+      const parsedGenres = parseArrayInput(genres);
+      const parsedTags = parseArrayInput(tags);
 
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
-
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const ebook = await this.prisma.contents.update({
-      where: { uuid, type: 'EBOOK' },
-      data: {
-        title,
-        thumbnail,
-        description,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        slug: newSlug,
-        category: { connect: { uuid: category.uuid } },
-        Ebooks: {
-          update: {
-            where: { content_id: content.id },
-            data: { author, pages, publication, file_url, isbn, release_date },
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+      const ebook = await p.contents.update({
+        where: { uuid, type: 'EBOOK' },
+        data: {
+          title,
+          thumbnail,
+          description,
+          Tags: {
+            connect: parsedTags?.map((tag) => ({
+              name: tag.text,
+            })),
+          },
+          slug: newSlug,
+          category: { connect: { uuid: category.uuid } },
+          Ebooks: {
+            update: {
+              where: { content_id: content.id },
+              data: {
+                author,
+                pages,
+                publication,
+                file_url,
+                isbn,
+                release_date,
+              },
+            },
+          },
+          Genres: {
+            connect: parsedGenres?.map((genre) => ({
+              name: genre.text,
+            })),
           },
         },
-        Genres: {
-          connect: parsedGenres?.map((genre) => ({
-            name: genre.text,
-          })),
+      });
+
+      return {
+        status: 'success',
+        message: 'EBOOK updated succesfully.',
+        data: {
+          uuid: ebook.uuid,
         },
-      },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'EBOOK updated succesfully.',
-      data: {
-        uuid: ebook.uuid,
-      },
-    };
+    return res;
   }
 
   async remove(uuid: string) {

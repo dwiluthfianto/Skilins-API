@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateVideoPodcastDto } from './dto/create-video-podcast.dto';
 import { UpdateVideoPodcastDto } from './dto/update-video-podcast.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
 import parseArrayInput from 'src/common/utils/parse-array';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Prisma } from '@prisma/client';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { subMonths } from 'date-fns';
 
 @Injectable()
 export class VideoPodcastsService {
@@ -26,59 +28,311 @@ export class VideoPodcastsService {
       genres,
     } = createVideoPodcastDto;
 
-    const parsedGenres = parseArrayInput(genres);
-    const parsedTags = parseArrayInput(tags);
+    const res = await this.prisma.$transaction(async (p) => {
+      const parsedGenres = parseArrayInput(genres);
+      const parsedTags = parseArrayInput(tags);
 
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const userData = await this.prisma.users.findUniqueOrThrow({
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+      const userData = await p.users.findUniqueOrThrow({
+        where: {
+          uuid: creator_uuid,
+        },
+        include: {
+          Students: {
+            select: {
+              uuid: true,
+            },
+          },
+        },
+      });
+
+      if (!userData) {
+        throw new NotFoundException('User not found!');
+      }
+      const video = await p.contents.create({
+        data: {
+          type: 'VIDEO',
+          title,
+          thumbnail,
+          description,
+          Tags: {
+            connect: parsedTags?.map((tag) => ({
+              name: tag.text,
+            })),
+          },
+          slug: newSlug,
+          category: { connect: { name: category_name } },
+          VideoPodcasts: {
+            create: {
+              creator: { connect: { uuid: userData.Students[0].uuid } },
+              file_url,
+            },
+          },
+          Genres: {
+            connect: parsedGenres?.map((genre) => ({
+              name: genre.text,
+            })),
+          },
+        },
+      });
+      return {
+        status: 'success',
+        message: 'video successfully uploaded!',
+        data: {
+          uuid: video.uuid,
+          type: video.type,
+        },
+      };
+    });
+
+    return res;
+  }
+
+  async fetchVideos(findContentQueryDto: FindContentQueryDto) {
+    const { page, limit, category, tag, genre, search, status, latest } =
+      findContentQueryDto;
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const categoryFilter = category
+      ? {
+          category: {
+            name: {
+              equals: category,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const genreFilter = genre
+      ? {
+          Genres: {
+            some: {
+              name: {
+                equals: genre,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const filter = {
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...categoryFilter,
+      ...genreFilter,
+      ...tagFilter,
+    };
+
+    const videos = await this.prisma.contents.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
-        uuid: creator_uuid,
+        type: 'VIDEO',
+        ...filter,
       },
       include: {
-        Students: {
-          select: {
-            uuid: true,
-          },
-        },
-      },
-    });
-    const video = await this.prisma.contents.create({
-      data: {
-        type: 'VIDEO',
-        title,
-        thumbnail,
-        description,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        slug: newSlug,
-        category: { connect: { name: category_name } },
+        category: true,
+        Ratings: true,
+        Tags: true,
+        Genres: true,
         VideoPodcasts: {
-          create: {
-            creator: { connect: { uuid: userData.Students[0].uuid } },
-            file_url,
+          include: {
+            creator: true,
           },
-        },
-        Genres: {
-          connect: parsedGenres?.map((genre) => ({
-            name: genre.text,
-          })),
         },
       },
     });
+
+    const total = await this.prisma.contents.count({
+      where: { type: 'VIDEO', ...filter },
+    });
+
+    const data = await Promise.all(
+      videos.map(async (video) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: video.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+
+        return {
+          uuid: video.uuid,
+          thumbnail: video.thumbnail,
+          title: video.title,
+          description: video.description,
+          slug: video.slug,
+          tags: video.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: video.Genres.map((genre) => ({
+            id: genre.uuid,
+            text: genre.name,
+          })),
+          created_at: video.created_at,
+          updated_at: video.updated_at,
+          category: video.category.name,
+          creator: video.VideoPodcasts[0].creator.name,
+          file_url: video.VideoPodcasts[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
+
     return {
       status: 'success',
-      message: 'video successfully uploaded!',
-      data: {
-        uuid: video.uuid,
-        type: video.type,
-      },
+      data,
+      totalPages: total,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
     };
   }
 
-  async fetchVideos(page?: number, limit?: number, filter: object = {}) {
+  async fetchUserVideos(
+    userUuid: string,
+    findContentQueryDto: FindContentQueryDto,
+  ) {
+    const { page, limit, category, tag, genre, search, status, latest } =
+      findContentQueryDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { uuid: userUuid },
+    });
+
+    if (!user) {
+      throw new NotFoundException(404, 'Your account has been deleted');
+    }
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const filterByUser = {
+      AudioPodcasts: {
+        some: {
+          creator: {
+            user: { uuid: user.uuid },
+          },
+        },
+      },
+    };
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const categoryFilter = category
+      ? {
+          category: {
+            name: {
+              equals: category,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const genreFilter = genre
+      ? {
+          Genres: {
+            some: {
+              name: {
+                equals: genre,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const filter = {
+      ...filterByUser,
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...categoryFilter,
+      ...genreFilter,
+      ...tagFilter,
+    };
+
     const videos = await this.prisma.contents.findMany({
       ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
@@ -133,15 +387,6 @@ export class VideoPodcastsService {
       }),
     );
 
-    return { data, total };
-  }
-
-  async getPaginatedResponse(
-    page: number,
-    limit: number,
-    total: number,
-    data: any[],
-  ) {
     return {
       status: 'success',
       data,
@@ -149,88 +394,6 @@ export class VideoPodcastsService {
       page: page || 1,
       lastPage: limit ? Math.ceil(total / limit) : 1,
     };
-  }
-
-  async findAll(page?: number, limit?: number) {
-    const { data, total } = await this.fetchVideos(page, limit);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-  async findByCategory(page: number, limit: number, category: string) {
-    const filter = {
-      category: {
-        name: {
-          equals: category,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchVideos(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByGenre(page: number, limit: number, genre: string) {
-    const filter = {
-      Genres: {
-        name: {
-          equals: genre,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchVideos(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByTag(page: number, limit: number, tag: string) {
-    const filter = {
-      Tags: {
-        name: {
-          equals: tag,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchVideos(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findUserContent(
-    authorUuid: string,
-    page: number,
-    limit: number,
-    status: string = ContentStatus.APPROVED,
-  ) {
-    const filter = {
-      VideoPodcasts: {
-        some: {
-          creator: {
-            user: { uuid: authorUuid },
-          },
-        },
-      },
-      status: status as ContentStatus,
-    };
-
-    const { data, total } = await this.fetchVideos(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findLatest(page: number, limit: number, week: number) {
-    const currentDate = new Date();
-    const weeks = week * 7;
-    const oneWeekAgo = new Date(
-      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
-    );
-
-    const filter = {
-      created_at: {
-        gte: oneWeekAgo,
-        lte: currentDate,
-      },
-    };
-
-    const { data, total } = await this.fetchVideos(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
   }
 
   async findOne(uuid: string) {
@@ -370,52 +533,57 @@ export class VideoPodcastsService {
       genres,
     } = updateVideoPodcastDto;
 
-    const content = await this.uuidHelper.validateUuidContent(uuid);
-    const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
-    const category = await this.uuidHelper.validateUuidCategory(category_name);
+    const res = await this.prisma.$transaction(async (p) => {
+      const content = await this.uuidHelper.validateUuidContent(uuid);
+      const creator = await this.uuidHelper.validateUuidCreator(creator_uuid);
+      const category =
+        await this.uuidHelper.validateUuidCategory(category_name);
 
-    const parsedGenres = parseArrayInput(genres);
-    const parsedTags = parseArrayInput(tags);
+      const parsedGenres = parseArrayInput(genres);
+      const parsedTags = parseArrayInput(tags);
 
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const video = await this.prisma.contents.update({
-      where: { uuid, type: 'VIDEO' },
-      data: {
-        title,
-        thumbnail,
-        description,
-        Tags: {
-          connect: parsedTags?.map((tag) => ({
-            name: tag.text,
-          })),
-        },
-        category: { connect: { uuid: category.uuid } },
-        slug: newSlug,
-        VideoPodcasts: {
-          update: {
-            where: {
-              content_id: content.id,
-              creator_id: creator.Students[0].id,
-            },
-            data: {
-              file_url,
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+      const video = await p.contents.update({
+        where: { uuid, type: 'VIDEO' },
+        data: {
+          title,
+          thumbnail,
+          description,
+          Tags: {
+            connect: parsedTags?.map((tag) => ({
+              name: tag.text,
+            })),
+          },
+          category: { connect: { uuid: category.uuid } },
+          slug: newSlug,
+          VideoPodcasts: {
+            update: {
+              where: {
+                content_id: content.id,
+                creator_id: creator.Students[0].id,
+              },
+              data: {
+                file_url,
+              },
             },
           },
+          Genres: {
+            connect: parsedGenres?.map((genre) => ({
+              name: genre.text,
+            })),
+          },
         },
-        Genres: {
-          connect: parsedGenres?.map((genre) => ({
-            name: genre.text,
-          })),
+      });
+      return {
+        status: 'success',
+        message: 'video successfully updated!',
+        data: {
+          uuid: video.uuid,
         },
-      },
+      };
     });
-    return {
-      status: 'success',
-      message: 'video successfully updated!',
-      data: {
-        uuid: video.uuid,
-      },
-    };
+
+    return res;
   }
 
   async remove(uuid: string) {

@@ -12,11 +12,19 @@ import {
   UseInterceptors,
   UploadedFiles,
   Query,
+  Res,
 } from '@nestjs/common';
 import { MajorsService } from './majors.service';
 import { CreateMajorDto } from './dto/create-major.dto';
 import { UpdateMajorDto } from './dto/update-major.dto';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBasicAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Major } from './entities/major.entity';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -24,9 +32,11 @@ import { Roles } from '../roles/roles.decorator';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
+import { Response } from 'express';
 @ApiTags('Major')
 @Controller({ path: 'api/v1/majors', version: '1' })
-@Roles('admin')
+@ApiBasicAuth('JWT-auth')
+@Roles('Staff')
 export class MajorsController {
   constructor(
     private readonly majorsService: MajorsService,
@@ -38,11 +48,11 @@ export class MajorsController {
     type: Major,
   })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'image_url' }, { name: 'avatar_url' }]),
   )
-  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFiles()
     files: {
@@ -50,6 +60,7 @@ export class MajorsController {
       avatar_url?: Express.Multer.File[];
     },
     @Body() createMajorDto: CreateMajorDto,
+    @Res() res: Response,
   ) {
     let imageFilename: string;
     let avatarFilename: string;
@@ -86,8 +97,8 @@ export class MajorsController {
         avatarFilename = fileUrlFilename;
         createMajorDto.avatar_url = fileUrl;
       }
-      const major = await this.majorsService.create(createMajorDto);
-      return major;
+      const result = await this.majorsService.create(createMajorDto);
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during audio podcast creation:', e.message);
 
@@ -100,9 +111,11 @@ export class MajorsController {
         console.error('Failed to delete files:', error);
       }
 
-      return {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
         message: 'Failed to create major and cleaned up uploaded files.',
-      };
+        detail: e.message,
+      });
     }
   }
 
@@ -111,13 +124,15 @@ export class MajorsController {
     type: Major,
     isArray: true,
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'search by name for categories',
+  })
   @HttpCode(HttpStatus.OK)
   findAll(@Query('search') search: string) {
-    if (search) {
-      return this.majorsService.findAllByName(search);
-    } else {
-      return this.majorsService.findAll();
-    }
+    return this.majorsService.findAll(search);
   }
 
   @Get(':uuid')
@@ -134,11 +149,11 @@ export class MajorsController {
     type: Major,
   })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'image_url' }, { name: 'avatar_url' }]),
   )
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('uuid') uuid: string,
     @UploadedFiles()
@@ -147,10 +162,9 @@ export class MajorsController {
       avatar_url?: Express.Multer.File[];
     },
     @Body() updateMajorDto: UpdateMajorDto,
+    @Res() res: Response,
   ) {
-    const major = await this.majorsService.update(uuid, updateMajorDto);
-
-    if (major.status === 'success') {
+    try {
       const isExist = await this.majorsService.findOne(uuid);
 
       if (files.avatar_url && files.avatar_url.length > 0) {
@@ -176,9 +190,21 @@ export class MajorsController {
           throw new Error(`Failed to update avatar: ${error}`);
         }
       }
-    }
 
-    return major;
+      const updatedMajor = await this.majorsService.update(
+        uuid,
+        updateMajorDto,
+      );
+
+      return res.status(HttpStatus.OK).json(updatedMajor);
+    } catch (error) {
+      console.error('Error updating major:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update major',
+        detail: error.message,
+      });
+    }
   }
 
   @Delete(':uuid')
@@ -186,7 +212,7 @@ export class MajorsController {
     type: Major,
   })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('Staff')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('uuid') uuid: string) {
     const isExist = await this.majorsService.findOne(uuid);

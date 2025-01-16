@@ -17,12 +17,13 @@ import { JudgeService } from './judge.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/modules/roles/roles.decorator';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EvaluateSubmissionDto } from '../dto/evaluate-submission.dto';
 import { UpdateJudgeDto } from '../dto/update-judge.dto';
 import { Request } from 'express';
 
 @ApiTags('Judge')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/judges', version: '1' })
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class JudgeController {

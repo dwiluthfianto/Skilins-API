@@ -2,6 +2,7 @@ import { PrismaClient, RoleType } from '@prisma/client';
 const prisma = new PrismaClient();
 async function main() {
   // Roles Seeder
+
   const admin = await prisma.roles.upsert({
     where: { name: RoleType.Admin },
     update: {},
@@ -79,11 +80,8 @@ async function main() {
     },
   });
 
-  const PRLDG = await prisma.majors.upsert({
-    where: { uuid: '9bdea8be-e72f-4138-b7d0-f175c0086c63' },
-    update: {},
-    create: {
-      uuid: '9bdea8be-e72f-4138-b7d0-f175c0086c63',
+  const majorData = [
+    {
       image_url:
         'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
       avatar_url:
@@ -92,7 +90,66 @@ async function main() {
       description:
         'Pengembangan Perangkat Lunak dan Gim merupakan salah satu program keahlian yang ada di SMKN 1 Gunungputri . Program Pengembangan Perangkat Lunak dan GIM atau sebelumnya keahlian Rekayasa Perangkat Lunak (RPL) adalah salah satu kompetensi keahlian dalam bidang Teknologi Komputer dan Informatika yang secara khusus mempelajari tentang pemrograman komputer dan game developer.',
     },
-  });
+    {
+      image_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      avatar_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      name: 'KIMIA INDUSTRI',
+      description:
+        'Kimia Industri adalah Program keahlian yang mempelajari pemprosesan bahan mentah menjadi berupa barang setengah jadi ataupun barang jadi (produk) seperti : minyak bumi dan gas bumi, gas bio, detergen, cairan anti kuman, plastik, kertas, kecantikan, obat-obatan, makanan instan, dll. Lulusan Teknik Kimia Industri berpeluang kerja antara lain : Di Industri Kimia (Sebagai Analisis Laboratorium dan Operator Peralatan Industri Kimia); Industri Pangan (Indofood, Unilever, Makanan Instan dll); Industri Kesehatan dan Kecantikan : (Industri Obat-obatan, detergen, sabun, pasta gigi, dll); Pertambangan : Pertamina, Pabrik Pengolahan Oli, dan Gas; Industri Selter Industri Pupuk dan Peptisida, Dll.',
+    },
+    {
+      image_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      avatar_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      name: 'TEKNIK PENGELASAN',
+      description:
+        'Jurusan ini mempelajari satu bidang kerja saja yaitu bagaimana cara untuk mengelas yang baik, dan teori tentang apa – apa saja bahan untuk proses pengelasan, jursan las sendiri memiliki peluang kerja yang sangat dibutuhkan oleh beberapa perusahaan, karena tidak sedikit industri yang mensiagakan para pekerja di bidang engginering untuk menjaga kecakapan mesin – mesin yang ada di perusahaan, salah satu yang dibutuhkan adalah teknik las.',
+    },
+    {
+      image_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      avatar_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      name: 'TEKNIK PEMESINAN',
+      description:
+        'Program Keahlian Teknik Pemesinan membekali peserta didik dengan ketrampilan pemesinan yang meliputi : mengoperasikan mesin-mesin produksi baik mesin Manual maupun mesin CNC (Computer Numerical Control) , mesin Bubut, mesin Frais, mesin Sekrap, mesin Bor, mesin Gerinda Datar, mesin Gerinda Poros, mesin Gerinda Potong, mengasah alat-alat potong, Pengelasan dan Fabrikasi logam dan 3D Printing. Peserta didik juga dibekali dengan pengetahuan membaca dan menggambar dengan teknik manual maupun dengan CAD (Computer Aidet Design). Pengenalan dan pengolahan bahan, mengukur dengan alat ukur mekanik presisi, menggunakan perkakas tangan serta melakukan perhitungan dasar dan lanjut untuk diimplementasikan dalam praktek membuat benda kerja dan perlengkapan praktek oleh Guru Praktek ( Instruktor ) yang rata-rata tamatan S1 dan D4 dan semua sudah bersertifikasi guru, juga ada yang sedang menempuh kuliah S2.',
+    },
+    {
+      image_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      avatar_url:
+        'https://images.unsplash.com/photo-1494537176433-7a3c4ef2046f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      name: 'TEKNIK ELEKTRONIKA',
+      description:
+        'Teknik Elektronika adalah bidang teknik yang mempelajari tentang komponen listrik dan peralatan-peralatan semi konduktor. Teknik Elektronika merupakan bagian dari Teknik Listrik (Teknik Elektro). Materi yang dipelajari meliputi aplikasi sistem elektronika digital, elektronika computer, sistem mikroprosesor dan mikrokontroller, rangkaian elektronika terapan dan elektronika Industri, program sistem pengendali elektronik berbasis mikroprosesor,  mikrokontroller, PLC dan Komputer,  sistem pengendali dan sistem otomasi elektronika.',
+    },
+  ];
+
+  const createdMajors = await Promise.all(
+    majorData.map(async (maj) => {
+      const major = await prisma.majors.upsert({
+        where: {
+          name: maj.name,
+        },
+        update: {
+          description: maj.description,
+          image_url: maj.image_url,
+          avatar_url: maj.avatar_url,
+        },
+        create: {
+          name: maj.name,
+          description: maj.description,
+          image_url: maj.image_url,
+          avatar_url: maj.avatar_url,
+        },
+      });
+
+      return major;
+    }),
+  );
 
   const studentTest = await prisma.students.upsert({
     where: { uuid: 'f9d5d6b8-6998-402b-9355-8040d715bf8e' },
@@ -215,7 +272,7 @@ async function main() {
     staffAccount,
     adminAccount,
     studentAccount,
-    PRLDG,
+    createdMajors,
     studentTest,
   });
 }

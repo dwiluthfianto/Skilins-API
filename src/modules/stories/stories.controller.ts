@@ -14,26 +14,25 @@ import {
   UseInterceptors,
   UploadedFile,
   ParseFilePipeBuilder,
-  HttpException,
+  Res,
 } from '@nestjs/common';
 import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { UpdateStoryDto } from './dto/update-story.dto';
 import { AddStoryEpisodeDto } from './dto/add-episode-story.dto.ts';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { UpdateStoryEpisodeDto } from './dto/update-episode-story.dto.ts';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../roles/roles.decorator';
 import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
-import { ContentUserDto } from '../contents/dto/content-user.dto';
-import { ContentStatus } from '@prisma/client';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 
-@ApiTags('Contents')
+@ApiTags('Stories')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/stories', version: '1' })
 export class StoriesController {
   constructor(
@@ -45,6 +44,7 @@ export class StoriesController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @UseInterceptors(FileInterceptor('thumbnail'))
   @Roles('Student')
+  @ApiConsumes('multipart/form-data')
   async createStory(
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -60,6 +60,7 @@ export class StoriesController {
     )
     thumbnail: Express.Multer.File,
     @Body() createStoryDto: CreateStoryDto,
+    @Res() res: Response,
   ) {
     let thumbnailFilename: string;
     try {
@@ -77,7 +78,8 @@ export class StoriesController {
         thumbnailFilename = fileName;
         createStoryDto.thumbnail = url;
       }
-      return await this.storiesService.create(createStoryDto);
+      const result = await this.storiesService.create(createStoryDto);
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during Blog creation:', e.message);
 
@@ -88,13 +90,11 @@ export class StoriesController {
       if (!success) {
         console.error('Failed to delete files:', error);
       }
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: `Story creation failed: ${e.message}. ${thumbnailFilename ? 'Failed to clean up uploaded file' : ''}`,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to create prakerin and cleaned up uploaded files.',
+        detail: e.message,
+      });
     }
   }
 
@@ -118,47 +118,19 @@ export class StoriesController {
   @Get()
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: FindContentQueryDto) {
-    const { page, limit, category, tag, genre, search } = query;
-
-    if (category) {
-      return this.storiesService.findByCategory(page, limit, category);
-    }
-
-    if (tag) {
-      return this.storiesService.findByTag(page, limit, tag);
-    }
-
-    if (genre) {
-      return this.storiesService.findByGenre(page, limit, genre);
-    }
-
-    return this.storiesService.findAll(page, limit, search);
+    return this.storiesService.fetchStories(query);
   }
 
   @Get('student')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Student')
   @HttpCode(HttpStatus.OK)
-  async findUserStories(@Req() req: Request, @Query() query: ContentUserDto) {
-    const user = req.user;
-    const { page, limit, status } = query;
-    return await this.storiesService.findUserContent(
-      user['sub'],
-      page,
-      limit,
-      status,
-    );
-  }
-
-  @Get('latest')
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
-    @Query('status') status: ContentStatus,
+  async findUserStories(
+    @Req() req: Request,
+    @Query() query: FindContentQueryDto,
   ) {
-    return this.storiesService.findLatest(page, limit, week, status);
+    const user = req.user;
+    return await this.storiesService.fetchUserStories(user['sub'], query);
   }
 
   @Get(':slug')

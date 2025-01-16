@@ -1,51 +1,48 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, MinLength } from 'class-validator';
-import { UpdateGenreDto } from 'src/modules/genres/dto/update-genre.dto';
-import { UpdateTagDto } from 'src/modules/tags/dto/update-tag.dto';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class ContentDto {
   @ApiProperty({ example: 'Content Title', type: String })
   @IsNotEmpty()
   @MinLength(5)
+  @IsString()
   title: string;
 
-  @ApiProperty({ example: 'https://example.com/thumbnail.jpg', type: String })
+  @ApiProperty({ type: String, format: 'binary' })
   thumbnail: string;
 
   @ApiPropertyOptional({ example: 'This is a description', type: String })
   @IsOptional()
+  @IsString()
   description?: string;
 
-  @ApiProperty({
-    example: 'Fiction',
+  @ApiPropertyOptional({
+    enum: ['Fiction', 'Non Fiction'],
     type: String,
   })
   @IsOptional()
+  @IsString()
   category_name: string;
 
   @ApiPropertyOptional({
     example: [
       {
-        name: 'this is a genre name',
-        avatar_url: 'https://example.com/avatar.jpg',
-        description: 'this is a description',
+        text: 'Mystery',
       },
     ],
-    type: () => UpdateGenreDto,
+    type: Object,
   })
   @IsOptional()
-  genres: UpdateGenreDto[];
+  genres: object[];
 
   @ApiPropertyOptional({
     example: [
       {
-        name: 'this is a tag name',
-        avatar_url: 'https://example.com/avatar.jpg',
-        description: 'this is a description',
+        text: 'Must Read',
       },
     ],
-    type: () => UpdateTagDto,
+    type: Object,
   })
   @IsOptional()
-  tags: UpdateTagDto[];
+  tags: object[];
 }

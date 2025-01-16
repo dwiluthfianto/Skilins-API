@@ -13,11 +13,18 @@ import {
   UploadedFiles,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
 import { AudioPodcastsService } from './audio-podcasts.service';
 import { CreateAudioPodcastDto } from './dto/create-audio-podcast.dto';
 import { UpdateAudioPodcastDto } from './dto/update-audio-podcast.dto';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AudioPodcast } from './entities/audio-podcast.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -26,11 +33,10 @@ import { Roles } from '../roles/roles.decorator';
 import { SupabaseService } from 'src/supabase';
 import { ContentFileEnum } from '../contents/content-file.enum';
 import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
-import { ContentUserDto } from '../contents/dto/content-user.dto';
-import { Request } from 'express';
-import { ContentStatus } from '@prisma/client';
+import { Request, Response } from 'express';
 
-@ApiTags('Contents')
+@ApiTags('Audios')
+@ApiBearerAuth('JWT-auth')
 @Controller({ path: 'api/v1/contents/audios', version: '1' })
 export class AudioPodcastsController {
   constructor(
@@ -47,7 +53,7 @@ export class AudioPodcastsController {
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'thumbnail' }, { name: 'file_url' }]),
   )
-  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
   async create(
     @UploadedFiles()
     files: {
@@ -55,6 +61,7 @@ export class AudioPodcastsController {
       file_url?: Express.Multer.File[];
     },
     @Body() createAudioPodcastDto: CreateAudioPodcastDto,
+    @Res() res: Response,
   ) {
     let thumbFilename: string;
     let fileFilename: string;
@@ -100,7 +107,7 @@ export class AudioPodcastsController {
       const result = await this.audioPodcastsService.create(
         createAudioPodcastDto,
       );
-      return result;
+      return res.status(HttpStatus.CREATED).json(result);
     } catch (e) {
       console.error('Error during audio podcast creation:', e.message);
 
@@ -113,10 +120,12 @@ export class AudioPodcastsController {
         console.error('Failed to delete files:', error);
       }
 
-      return {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
         message:
           'Failed to create audio podcast and cleaned up uploaded files.',
-      };
+        detail: e.message,
+      });
     }
   }
 
@@ -127,21 +136,7 @@ export class AudioPodcastsController {
   })
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: FindContentQueryDto) {
-    const { page, limit, category, tag, genre, search } = query;
-
-    if (category) {
-      return this.audioPodcastsService.findByCategory(page, limit, category);
-    }
-
-    if (tag) {
-      return this.audioPodcastsService.findByTag(page, limit, tag);
-    }
-
-    if (genre) {
-      return this.audioPodcastsService.findByGenre(page, limit, genre);
-    }
-
-    return this.audioPodcastsService.findAll(page, limit, search);
+    return this.audioPodcastsService.fetchAudios(query);
   }
 
   @Get('student')
@@ -152,30 +147,9 @@ export class AudioPodcastsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Student')
   @HttpCode(HttpStatus.OK)
-  async findUserAudio(@Req() req: Request, @Query() query: ContentUserDto) {
+  findUserAudio(@Req() req: Request, @Query() query: FindContentQueryDto) {
     const user = req.user;
-    const { page, limit, status } = query;
-    return await this.audioPodcastsService.findUserContent(
-      user['sub'],
-      page,
-      limit,
-      status,
-    );
-  }
-
-  @Get('latest')
-  @ApiOkResponse({
-    type: AudioPodcast,
-    isArray: true,
-  })
-  @HttpCode(HttpStatus.OK)
-  findLatest(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 25,
-    @Query('week') week: number = 1,
-    @Query('status') status: ContentStatus,
-  ) {
-    return this.audioPodcastsService.findLatest(page, limit, week, status);
+    return this.audioPodcastsService.fetchUserAudios(user['sub'], query);
   }
 
   @Get(':slug')
@@ -196,7 +170,7 @@ export class AudioPodcastsController {
   @ApiOkResponse({
     type: AudioPodcast,
   })
-  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('uuid') uuid: string,
     @UploadedFiles()
@@ -205,17 +179,19 @@ export class AudioPodcastsController {
       file_url?: Express.Multer.File[];
     },
     @Body() updateAudioPodcastDto: UpdateAudioPodcastDto,
+    @Res() res: Response,
   ) {
-    const audio = await this.audioPodcastsService.update(
-      uuid,
-      updateAudioPodcastDto,
-    );
+    try {
+      const currentAudio = await this.audioPodcastsService.findOne(uuid);
 
-    if (audio.status === 'success') {
-      const isExist = await this.audioPodcastsService.findOne(uuid);
-
+      if (!currentAudio) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: 'failed',
+          message: 'Ebook not found',
+        });
+      }
       if (files.thumbnail && files.thumbnail.length > 0) {
-        const thumbFilename = isExist.data.thumbnail.split('/').pop();
+        const thumbFilename = currentAudio.data.thumbnail.split('/').pop();
 
         const { success: thumbnailSuccess, error: thumbnailError } =
           await this.supabaseService.updateFile(
@@ -229,7 +205,7 @@ export class AudioPodcastsController {
       }
 
       if (files.file_url && files.file_url.length > 0) {
-        const fileFilename = isExist.data.file_url.split('/').pop();
+        const fileFilename = currentAudio.data.file_url.split('/').pop();
         const { success: fileSuccess, error: fileError } =
           await this.supabaseService.updateFile(
             `${ContentFileEnum.file_audio}${fileFilename}`,
@@ -240,9 +216,21 @@ export class AudioPodcastsController {
           throw new Error(`Failed to update file: ${fileError}`);
         }
       }
-    }
 
-    return audio;
+      const updatedAudio = await this.audioPodcastsService.update(
+        uuid,
+        updateAudioPodcastDto,
+      );
+
+      return res.status(HttpStatus.OK).json(updatedAudio);
+    } catch (error) {
+      console.error('Error updating audio:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'failed',
+        message: 'Failed to update audio',
+        detail: error.message,
+      });
+    }
   }
 
   @Delete(':uuid')

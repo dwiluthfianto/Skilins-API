@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
@@ -7,7 +11,9 @@ import { UpdateStoryEpisodeDto } from './dto/update-episode-story.dto.ts';
 import { UpdateStoryDto } from './dto/update-story.dto';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import parseArrayInput from 'src/common/utils/parse-array';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Prisma } from '@prisma/client';
+import { FindContentQueryDto } from '../contents/dto/find-content-query.dto';
+import { subMonths } from 'date-fns';
 
 @Injectable()
 export class StoriesService {
@@ -127,7 +133,85 @@ export class StoriesService {
     };
   }
 
-  async fetchStories(page?: number, limit?: number, filter: object = {}) {
+  async fetchStories(findContentQueryDto: FindContentQueryDto) {
+    const { page, limit, category, tag, genre, search, status, latest } =
+      findContentQueryDto;
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const categoryFilter = category
+      ? {
+          category: {
+            name: {
+              equals: category,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const genreFilter = genre
+      ? {
+          Genres: {
+            some: {
+              name: {
+                equals: genre,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const filter = {
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...categoryFilter,
+      ...genreFilter,
+      ...tagFilter,
+    };
+
     const stories = await this.prisma.contents.findMany({
       ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
@@ -183,15 +267,6 @@ export class StoriesService {
       }),
     );
 
-    return { data, total };
-  }
-
-  async getPaginatedResponse(
-    page: number,
-    limit: number,
-    total: number,
-    data: any[],
-  ) {
     return {
       status: 'success',
       data,
@@ -201,102 +276,169 @@ export class StoriesService {
     };
   }
 
-  async findAll(page?: number, limit?: number, search: string = '') {
-    const filter = {
-      title: {
-        contains: search,
-        mode: 'insensitive',
-      },
-    };
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByCategory(page: number, limit: number, category: string) {
-    const filter = {
-      category: {
-        name: {
-          equals: category,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByGenre(page: number, limit: number, genre: string) {
-    const filter = {
-      Genres: {
-        some: {
-          name: {
-            equals: genre,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByTag(page: number, limit: number, tag: string) {
-    const filter = {
-      Tags: {
-        some: {
-          name: {
-            equals: tag,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findUserContent(
-    authorUuid: string,
-    page: number,
-    limit: number,
-    status: string = ContentStatus.APPROVED,
+  async fetchUserStories(
+    userUuid: string,
+    findContentQueryDto: FindContentQueryDto,
   ) {
-    const filter = {
+    const { page, limit, category, tag, genre, search, status, latest } =
+      findContentQueryDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { uuid: userUuid },
+    });
+
+    if (!user) {
+      throw new NotFoundException(404, 'Your account has been deleted');
+    }
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const filterByUser = {
       Stories: {
         some: {
           author: {
-            user: { uuid: authorUuid },
+            user: { uuid: user.uuid },
           },
         },
       },
-      status: status as ContentStatus,
     };
 
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
 
-  async findLatest(
-    page: number,
-    limit: number,
-    week: number,
-    status: string = ContentStatus.APPROVED,
-  ) {
-    const currentDate = new Date();
-    const weeks = week * 7;
-    const oneWeekAgo = new Date(
-      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
-    );
-
-    const filter = {
-      status: status as ContentStatus,
-      created_at: {
-        gte: oneWeekAgo,
-        lte: currentDate,
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
       },
     };
-    const { data, total } = await this.fetchStories(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const categoryFilter = category
+      ? {
+          category: {
+            name: {
+              equals: category,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        }
+      : {};
+
+    const genreFilter = genre
+      ? {
+          Genres: {
+            some: {
+              name: {
+                equals: genre,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const tagFilter = tag
+      ? {
+          Tags: {
+            some: {
+              name: {
+                equals: tag,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          },
+        }
+      : {};
+
+    const filter = {
+      ...filterByUser,
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+      ...categoryFilter,
+      ...genreFilter,
+      ...tagFilter,
+    };
+
+    const stories = await this.prisma.contents.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        type: 'STORY',
+        ...filter,
+      },
+      include: {
+        category: true,
+        Tags: true,
+        Genres: true,
+        Ratings: true,
+        Stories: {
+          include: {
+            author: true,
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.stories.count();
+
+    const data = await Promise.all(
+      stories.map(async (story) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: story.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+
+        return {
+          uuid: story.uuid,
+          thumbnail: story.thumbnail,
+          title: story.title,
+          description: story.description,
+          slug: story.slug,
+          tags: story.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          genres: story.Genres.map((genre) => ({
+            id: genre.uuid,
+            text: genre.name,
+          })),
+          status: story.status,
+          created_at: story.created_at,
+          updated_at: story.updated_at,
+          category: story.category.name,
+          creator: story.Stories[0]?.author?.name || null,
+          avg_rating,
+        };
+      }),
+    );
+
+    return {
+      status: 'success',
+      data,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
+    };
   }
 
   async getStoryBySlug(slug: string) {
@@ -533,34 +675,8 @@ export class StoriesService {
       );
     }
 
-    let parsedGenres;
-
-    if (Array.isArray(genres)) {
-      parsedGenres = genres;
-    } else if (typeof genres === 'string') {
-      try {
-        parsedGenres = JSON.parse(genres);
-      } catch (error) {
-        console.error('Failed to parse genres:', error);
-        throw new Error('Invalid JSON format for genres');
-      }
-    } else {
-      parsedGenres = [];
-    }
-
-    let parsedTags;
-    if (Array.isArray(tags)) {
-      parsedTags = tags;
-    } else if (typeof tags === 'string') {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error('Failed to parse tags:', error);
-        throw new Error('Invalid JSON format for tags');
-      }
-    } else {
-      parsedTags = [];
-    }
+    const parsedGenres = parseArrayInput(genres);
+    const parsedTags = parseArrayInput(tags);
 
     const newSlug = await this.slugHelper.generateUniqueSlug(title);
     const story = await this.prisma.contents.update({

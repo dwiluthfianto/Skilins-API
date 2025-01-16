@@ -1,9 +1,9 @@
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ContentStatus } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class FindContentQueryDto {
+export class FindPrakerinQueryDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsNumber()
@@ -13,33 +13,6 @@ export class FindContentQueryDto {
   @Type(() => Number)
   @IsNumber()
   limit: number;
-
-  @ApiPropertyOptional({
-    enum: ['Fiction', 'Non Fiction'],
-    type: String,
-    description: 'Search by category of content',
-  })
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @ApiPropertyOptional({
-    type: String,
-    example: 'Popular Choice',
-    description: 'Search by tag of content',
-  })
-  @IsOptional()
-  @IsString()
-  tag?: string;
-
-  @ApiPropertyOptional({
-    type: String,
-    example: 'Romance',
-    description: 'Search by genre of content',
-  })
-  @IsOptional()
-  @IsString()
-  genre?: string;
 
   @ApiPropertyOptional({
     type: String,
@@ -55,11 +28,7 @@ export class FindContentQueryDto {
     example: true,
     description: 'Search by the latest of content',
   })
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
+  @Type(() => Boolean)
   @IsOptional()
   @IsBoolean()
   latest?: boolean;

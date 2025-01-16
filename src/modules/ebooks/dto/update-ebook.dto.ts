@@ -18,18 +18,11 @@ export class UpdateEbookDto extends PartialType(CreateEbookDto) {
   @IsOptional()
   publication?: string;
 
-  @ApiPropertyOptional({
-    example: 'https://example.com/test.pdf',
-    type: String,
-  })
-  @IsOptional()
-  file_url?: string;
-
   @ApiPropertyOptional({ example: 'This is an ISBN', type: String })
   @IsOptional()
   isbn?: string;
 
-  @ApiPropertyOptional({ example: '2024-04-30T04:00:00.000Z', type: Date })
+  @ApiPropertyOptional({ example: '2024-04-30', type: Date })
   @IsOptional()
   @Transform(({ value }) => new Date(value))
   @IsDate()

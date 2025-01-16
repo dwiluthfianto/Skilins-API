@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePrakerinDto } from './dto/create-prakerin.dto';
 import { UpdatePrakerinDto } from './dto/update-prakerin.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UuidHelper } from 'src/common/helpers/uuid.helper';
 import { SlugHelper } from 'src/common/helpers/generate-unique-slug';
+import { ContentStatus, Prisma } from '@prisma/client';
+import { subMonths } from 'date-fns';
+import { FindPrakerinQueryDto } from '../contents/dto/find-prakerin-query.dto';
 
 @Injectable()
 export class PrakerinService {
@@ -16,52 +19,226 @@ export class PrakerinService {
     const { title, thumbnail, description, pages, file_url, author_uuid } =
       createPrakerinDto;
 
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const userData = await this.prisma.users.findUniqueOrThrow({
-      where: {
-        uuid: author_uuid,
-      },
-      include: {
-        Students: {
-          select: {
-            uuid: true,
+    const res = await this.prisma.$transaction(async (p) => {
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+      const userData = await p.users.findUniqueOrThrow({
+        where: {
+          uuid: author_uuid,
+        },
+        include: {
+          Students: {
+            select: {
+              uuid: true,
+            },
           },
         },
-      },
-    });
-    const content = await this.prisma.contents.create({
-      data: {
-        type: 'PRAKERIN',
-        title,
-        thumbnail,
-        description,
-        slug: newSlug,
-        category: { connect: { name: 'Non-fiction' } },
-        Prakerin: {
-          create: {
-            author: { connect: { uuid: userData.Students[0].uuid } },
-            pages,
-            file_url,
+      });
+
+      if (!userData) {
+        throw new NotFoundException('user not found!');
+      }
+
+      const content = await p.contents.create({
+        data: {
+          type: 'PRAKERIN',
+          title,
+          thumbnail,
+          description,
+          slug: newSlug,
+          category: { connect: { name: 'Non-fiction' } },
+          Prakerin: {
+            create: {
+              author: { connect: { uuid: userData.Students[0].uuid } },
+              pages,
+              file_url,
+            },
           },
         },
-      },
+      });
+
+      return {
+        status: 'success',
+        message: 'prakerin added successfully!',
+        data: {
+          uuid: content.uuid,
+          type: content.type,
+        },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'prakerin added successfully!',
-      data: {
-        uuid: content.uuid,
-        type: content.type,
-      },
-    };
+    return res;
   }
 
-  async fetchPrakerin(page: number, limit: number, filter: object = {}) {
+  async fetchPrakerin(findPrakerinQueryDto: FindPrakerinQueryDto) {
+    const { page, limit, search, status, latest } = findPrakerinQueryDto;
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const filter = {
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+    };
+
     const prakerin = await this.prisma.contents.findMany({
       ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
       where: {
         type: 'PRAKERIN',
+        ...filter,
+      },
+      include: {
+        category: true,
+        Tags: true,
+        Ratings: true,
+        Prakerin: {
+          include: {
+            author: {
+              include: {
+                major: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.contents.count({
+      where: { type: 'PRAKERIN', ...filter },
+    });
+
+    const data = await Promise.all(
+      prakerin.map(async (content) => {
+        const avgRatingResult = await this.prisma.ratings.aggregate({
+          where: { content_id: content.id },
+          _avg: {
+            rating_value: true,
+          },
+        });
+        const avg_rating = avgRatingResult._avg.rating_value || 0;
+        return {
+          uuid: content.uuid,
+          thumbnail: content.thumbnail,
+          title: content.title,
+          description: content.description,
+          slug: content.slug,
+          tags: content.Tags.map((tag) => ({
+            id: tag.uuid,
+            text: tag.name,
+          })),
+          status: content.status,
+          created_at: content.created_at,
+          updated_at: content.updated_at,
+          category: content.category.name,
+          author: content.Prakerin[0].author.name,
+          major: content.Prakerin[0].author.major.name,
+          pages: content.Prakerin[0].pages,
+          file_url: content.Prakerin[0].file_url,
+          avg_rating,
+        };
+      }),
+    );
+
+    return {
+      status: 'success',
+      data,
+      totalPages: total,
+      page: page || 1,
+      lastPage: limit ? Math.ceil(total / limit) : 1,
+    };
+  }
+
+  async fetchUserPrakerin(
+    userUuid: string,
+    findPrakerinQueryDto: FindPrakerinQueryDto,
+  ) {
+    const { page, limit, search, status, latest } = findPrakerinQueryDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { uuid: userUuid },
+    });
+
+    if (!user) {
+      throw new NotFoundException(404, 'Your account has been deleted');
+    }
+
+    const currentDate = new Date();
+
+    const twoMonthsAgo = subMonths(currentDate, 2);
+
+    const filterByUser = {
+      Prakerin: {
+        some: {
+          author: {
+            user: { uuid: userUuid },
+          },
+        },
+      },
+    };
+
+    const latestFilter = latest
+      ? {
+          status: ContentStatus.APPROVED,
+          created_at: {
+            gte: twoMonthsAgo,
+            lte: currentDate,
+          },
+        }
+      : {};
+
+    const searchByTitle = {
+      title: {
+        contains: search,
+        mode: Prisma.QueryMode.insensitive,
+      },
+    };
+
+    const statusFilter = status
+      ? {
+          status: {
+            equals: status,
+          },
+        }
+      : {};
+
+    const filter = {
+      ...filterByUser,
+      ...searchByTitle,
+      ...latestFilter,
+      ...statusFilter,
+    };
+
+    const prakerin = await this.prisma.contents.findMany({
+      ...(page && limit ? { skip: (page - 1) * limit, take: limit } : {}),
+      where: {
+        type: 'PRAKERIN',
+
         ...filter,
       },
       include: {
@@ -113,15 +290,6 @@ export class PrakerinService {
       }),
     );
 
-    return { data, total };
-  }
-
-  async getPaginatedResponse(
-    page: number,
-    limit: number,
-    total: number,
-    data: any[],
-  ) {
     return {
       status: 'success',
       data,
@@ -129,87 +297,6 @@ export class PrakerinService {
       page: page || 1,
       lastPage: limit ? Math.ceil(total / limit) : 1,
     };
-  }
-
-  async findAll(page?: number, limit?: number) {
-    const { data, total } = await this.fetchPrakerin(page, limit);
-
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByCategory(page: number, limit: number, category: string) {
-    const filter = {
-      category: {
-        name: {
-          equals: category,
-          mode: 'insensitive',
-        },
-      },
-    };
-    const { data, total } = await this.fetchPrakerin(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByGenre(page: number, limit: number, genre: string) {
-    const filter = {
-      Genres: {
-        some: {
-          name: {
-            equals: genre,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchPrakerin(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findByTag(page: number, limit: number, tag: string) {
-    const filter = {
-      Tags: {
-        some: {
-          name: {
-            equals: tag,
-            mode: 'insensitive',
-          },
-        },
-      },
-    };
-    const { data, total } = await this.fetchPrakerin(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findUserContent(authorUuid: string, page: number, limit: number) {
-    const filter = {
-      Prakerin: {
-        some: {
-          author: {
-            user: { uuid: authorUuid },
-          },
-        },
-      },
-    };
-
-    const { data, total } = await this.fetchPrakerin(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
-  }
-
-  async findLatest(page: number, limit: number, week: number) {
-    const currentDate = new Date();
-    const weeks = week * 7;
-    const oneWeekAgo = new Date(
-      currentDate.getTime() - weeks * 24 * 60 * 60 * 1000,
-    );
-
-    const filter = {
-      created_at: {
-        gte: oneWeekAgo,
-        lte: currentDate,
-      },
-    };
-    const { data, total } = await this.fetchPrakerin(page, limit, filter);
-    return this.getPaginatedResponse(page, limit, total, data);
   }
 
   async findOne(uuid: string) {
@@ -343,39 +430,44 @@ export class PrakerinService {
     const { title, thumbnail, description, pages, file_url, author_uuid } =
       updatePrakerinDto;
 
-    const contentCheck = await this.uuidHelper.validateUuidContent(contentUuid);
-    const creator = await this.uuidHelper.validateUuidCreator(author_uuid);
+    const res = await this.prisma.$transaction(async (p) => {
+      const contentCheck =
+        await this.uuidHelper.validateUuidContent(contentUuid);
+      const creator = await this.uuidHelper.validateUuidCreator(author_uuid);
 
-    const newSlug = await this.slugHelper.generateUniqueSlug(title);
-    const content = await this.prisma.contents.update({
-      where: { uuid: contentUuid, type: 'PRAKERIN' },
-      data: {
-        title,
-        thumbnail,
-        description,
-        slug: newSlug,
-        Prakerin: {
-          update: {
-            where: {
-              content_id: contentCheck.id,
-            },
-            data: {
-              author_id: creator.Students[0].id,
-              pages,
-              file_url,
+      const newSlug = await this.slugHelper.generateUniqueSlug(title);
+      const content = await p.contents.update({
+        where: { uuid: contentUuid, type: 'PRAKERIN' },
+        data: {
+          title,
+          thumbnail,
+          description,
+          slug: newSlug,
+          Prakerin: {
+            update: {
+              where: {
+                content_id: contentCheck.id,
+              },
+              data: {
+                author_id: creator.Students[0].id,
+                pages,
+                file_url,
+              },
             },
           },
         },
-      },
+      });
+
+      return {
+        status: 'success',
+        message: 'prakerin updated successfully!',
+        data: {
+          uuid: content.uuid,
+        },
+      };
     });
 
-    return {
-      status: 'success',
-      message: 'prakerin updated successfully!',
-      data: {
-        uuid: content.uuid,
-      },
-    };
+    return res;
   }
 
   async remove(uuid: string) {
